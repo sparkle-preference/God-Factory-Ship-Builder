@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-VERSION = "0.0.1"
+APP_VERSION = "0.0.1"
 
 from string import ascii_uppercase
 from time import sleep
@@ -218,7 +218,7 @@ class PartMark(dict):
     self[ao]["targetingArea"] = mkInt(partVals[46])
     self[ao]["targetingRange"] = mkInt(partVals[47])
     self[ao]["minimumRange"] = mkInt(partVals[48])
-      self[ao]["maximumRange"] = mkInt(partVals[49])
+    self[ao]["maximumRange"] = mkInt(partVals[49])
     self[ao]["accuracy"] = mkFlt(partVals[50])
     self[ao]["shotCooldown"] = mkFlt(partVals[51])
     self[ao]["projectileCount"] = mkInt(partVals[52])
@@ -351,12 +351,17 @@ try:
 except:
   print "No version file found! Will attempt to grab one online."
 
+
 #check for a new version of the app logic
 try:
-  val shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py')
-  if shipBuilder.read
+  shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py').readlines()
+  if re.match('APP_VERSION = "(.*)"',shipBuilder[1]).groups()[0] != APP_VERSION:
+    print "New version found! Restarting"
+    with open('new.shipBuilder.py','w') as f:
+      f.write(''.join(shipBuilder))
+    exit()
 except:
-  print "No version file found! Will attempt to grab one online."
+  print "Failed check for new version. Application logic may be out of date. Are you connected to the internet?"
 
 #check to see if there's a newer version of the data
 try:
