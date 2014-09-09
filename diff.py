@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# VERSION 0.0.1
+VERSION = "0.0.1"
 
 from string import ascii_uppercase
 from time import sleep
@@ -218,7 +218,7 @@ class PartMark(dict):
     self[ao]["targetingArea"] = mkInt(partVals[46])
     self[ao]["targetingRange"] = mkInt(partVals[47])
     self[ao]["minimumRange"] = mkInt(partVals[48])
-    self[ao]["maximumRange"] = mkInt(partVals[49])
+      self[ao]["maximumRange"] = mkInt(partVals[49])
     self[ao]["accuracy"] = mkFlt(partVals[50])
     self[ao]["shotCooldown"] = mkFlt(partVals[51])
     self[ao]["projectileCount"] = mkInt(partVals[52])
@@ -351,7 +351,7 @@ try:
 except:
   print "No version file found! Will attempt to grab one online."
 
-#check to see if there's a newer version
+#check to see if there's a newer version of the data
 try:
   newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
   if version != newVersion:
