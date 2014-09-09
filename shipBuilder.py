@@ -9,6 +9,7 @@ import csv
 import re
 import sqlite3
 import sys
+from distutils.version import StrictVersion
 from functools import partial
 from collections import namedtuple
 import kivy
@@ -40,10 +41,6 @@ from kivy.uix.widget import Widget
 from kivy.metrics import dp
 from kivy.graphics import Color,Rectangle,Line
 from kivy.uix.textinput import TextInput
-
-#for delim in rawStringDelims:
-#  strDump = strDump.replace(delim,'\n'+delim)
-#outFile = open('raw.out','w')
 
 ALPHA = "Alpha"
 OMEGA = "Omega"
@@ -355,13 +352,21 @@ except:
 #check for a new version of the app logic
 try:
   shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py').readlines()
-  if re.match('APP_VERSION = "(.*)"',shipBuilder[1]).groups()[0] != APP_VERSION:
-    print "New version found! Restarting"
+  appVersionFromRepo = re.match('APP_VERSION = "(.*)"',shipBuilder[1]).groups()[0]
+
+  if StrictVersion(appVersionFromRepo) > StrictVersion(APP_VERSION):
+    if os.path.isfile('new.shipBuilder.py'):
+      os.remove('new.shipBuilder.py')
     with open('new.shipBuilder.py','w') as f:
       f.write(''.join(shipBuilder))
-    exit()
 except:
   print "Failed check for new version. Application logic may be out of date. Are you connected to the internet?"
+
+if(os.path.isfile('new.shipBuilder.py')):
+  print "New version found! Restarting"
+  # Call the batch file to update here 
+  exit()
+
 
 #check to see if there's a newer version of the data
 try:
@@ -642,7 +647,7 @@ class StatsDisplay(GridLayout):
           continue
         if not part[attrib]:
           continue
-        if attrib == "DPS" and weaponType in part and part["weaponType"] == "Beam":
+        if attrib == "DPS" and "weaponType" in part and part["weaponType"] == "Beam":
           continue
         self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left'))  
         # sorry, not sorry
@@ -1146,11 +1151,34 @@ class ShipSelector(GridLayout):
     newShipButton = Button(text = "New Ship",size_hint_y=1)
     newShipButton.bind(on_release = self.doNewShipPopup)
     self.add_widget(newShipButton)
-    gModeBtn = Button(text = getAO(), size_hint_y = 1)
-    gModeBtn.bind(on_release=self.alphaOmegaSwap)
-    self.add_widget(gModeBtn)
+    self.gModeBtn = Button(text = getAO(), size_hint_y = 1)
+    self.gModeBtn.bind(on_release=self.alphaOmegaSwap)
+    self.add_widget(self.gModeBtn)
+
+    self._keyboard = Window.request_keyboard(self._keyboard_closed, self, 'text')
+    self._keyboard.bind(on_key_down=self._on_keyboard_down)
+
+  def _keyboard_closed(self):
+    self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+    self._keyboard = None
+
+  def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+    if keycode[1] == 'q':
+      self.alphaOmegaSwap(self.gModeBtn)
+      return True
+    return False
+
 
   def alphaOmegaSwap(self, btn):
+    if(currentShip.race != GUANTRI):
+      if getAO() != ALPHA:
+        swapAO()
+        currentShip.updateNumericValues()
+        onShipUpdate()
+        onPartUpdate()
+      btn.text = getAO()
+      return
+  
     btn.unbind(on_release=self.alphaOmegaSwap)
     swapAO()
     btn.text = getAO()
