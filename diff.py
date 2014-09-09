@@ -1,7 +1,9 @@
 #!/usr/bin/env python
+# VERSION 0.0.1
 
 from string import ascii_uppercase
 from time import sleep
+import urllib2
 import os.path
 import csv
 import re
@@ -308,7 +310,6 @@ class Trait:
     self.descStr = re.sub("Trait_Prop[a-zA-Z_]*",traitPropTrans, re.sub("\{([0-9])_([0-9])\}",lambda m: effects[int(m.group(1))-1][int(m.group(2))],desc).replace('\\n','\n'))
     self.displayStr = triggerTrans(nameAndId[1])
 
-version = "1.0.2b"
 
 miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
 triggerTypeTrans = {'Cnt':'Contained','Pas':'Passive', 'Dft': 'Drift', 'Rel': 'Relentless', 'Ven': 'Vengeance', 'Har': 'Harvester', 'Vel': 'Velocity', 'Red': 'Red Alert', 'War': 'Warrior', 'Rsp': 'Response', 'Att': 'Attacker', 'Def': 'Defender','All': 'All Green','Sen': 'Sentinel','Sav': 'Savior'}
@@ -343,7 +344,31 @@ def effectTrans(effectName):
   sign,nameParts = ('-',effectName[:-1].split('_')) if effectName[-1] == '-' else ('+',effectName.split('_'))
   return firstWordTrans[nameParts[0]] + ( " " + " ".join([restWordTrans[part] for part in nameParts[1:]]) if nameParts[1:] else sign) 
 
-version = open('VERSION').read()
+version = ""
+
+try:
+  version = open('VERSION').read()
+except:
+  print "No version file found! Will attempt to grab one online."
+
+#check to see if there's a newer version
+try:
+  newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
+  if version != newVersion:
+    version = newVersion
+    if os.path.isfile('VERSION'):
+      os.remove('VERSION')
+    with open('VERSION','w') as f:
+      f.write(version)
+    for dumpFile in ['traitStrings','traits','localization','parts']:
+      fileName = dumpFile + "."+version +".dump"
+      if os.path.isfile(fileName):
+        os.remove(fileName)
+      with open(fileName,'w') as f:
+        f.write(urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/'+fileName).read())
+except:
+  print "Error getting new version. Information may be outdated, and the program may not run at all."
+
 
 traitsById = {}
 traitStrings={}
