@@ -351,6 +351,13 @@ try:
 except:
   print "No version file found! Will attempt to grab one online."
 
+#check for a new version of the app logic
+try:
+  val shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py')
+  if shipBuilder.read
+except:
+  print "No version file found! Will attempt to grab one online."
+
 #check to see if there's a newer version of the data
 try:
   newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
