@@ -4,6 +4,7 @@ APP_VERSION = "0.0.1"
 from string import ascii_uppercase
 from time import sleep
 import urllib2
+import subprocess
 import os.path
 import csv
 import re
@@ -40,7 +41,9 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.widget import Widget
 from kivy.metrics import dp
 from kivy.graphics import Color,Rectangle,Line
+from kivy.graphics.instructions import Callback
 from kivy.uix.textinput import TextInput
+from kivy.uix.anchorlayout import AnchorLayout
 
 ALPHA = "Alpha"
 OMEGA = "Omega"
@@ -88,8 +91,8 @@ UNKNOWN = "???"
 
 projectilesPerTarget = { ALPHA: {214001: 1, 214002: 6,114007: 2,414000: 2,414005: 8,115002: 2,115007: 6,115010: 2,115011: 16,215001: 2,215007: 6,215013: 3,315003: 2,315010: 7,315012: 9,415005: 4,415006: 2,415002: 2,415014: 2}, OMEGA: { 214001: 2, 214002: 3 }}
 lockRequired = { ALPHA : { 214001: YES,114005: RESET,314000: RESET,314005: YES,314006: RESET,314007: YES,414002: YES,414005: YES,414007: YES,115001: YES,115002: YES,115007: RESET,115010: YES,115012: RESET,115011: YES,215001: YES,215003: RESET,215013: YES,315003: YES,315012: RESET,315007: RESET,315004: YES,315005: YES,415005: YES,415002: YES,415007: RESET,415014: RESET }, OMEGA: {214001: NO}}
-multiTargetMode = { ALPHA : {214003: NA, 114005: ADD,214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
-
+multiTargetMode = { ALPHA : {214003: NA, 114005: ADD, 114005: ADD, 214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
+ 
 # too lazy to hard code them all twice. Put placeholders for Guantri shit that's default in one mode but not in the other.
 for aoDict in [projectilesPerTarget, lockRequired, multiTargetMode]:
   for key in aoDict[ALPHA]:
@@ -115,12 +118,17 @@ def swapAO():
   global AO
   AO =  OMEGA if AO == ALPHA else ALPHA
 
+def setAO(x):
+  global AO
+  if x in [ALPHA, OMEGA]:
+    AO = x
+
 def aoInv(x):
   if x == ALPHA:
     return OMEGA
   if x == OMEGA:
     return ALPHA
-  1/0 #Y'know, just in case.
+  return ALPHA #The inverse of bad data is the beginning.
 
 def mkInt(x):
   return int(x) if re.match("^[0-9-]+$",x) else 0
@@ -246,9 +254,8 @@ class PartMark(dict):
 
   def updateNumericAttributes(self,ao):
     if self[ao]["type"] in [MAIN_WEAPON, WING_WEAPON]:
- 
-      if self[ao]["maximumRange"]:
-        self[ao]["range"] = (str(self[ao]["minimumRange"]) + " - " if self[ao]["minimumRange"] else "" ) + str(self[ao]["maximumRange"]) + (" ["+ str(self[ao]["projectileRange"]) + "]" if self[ao]["projectileRange"] and self[ao]["projectileRange"] != self[ao]["maximumRange"] else "" )
+
+      self[ao]["range"] = (str(self[ao]["minimumRange"]) + " - " if self[ao]["minimumRange"] else "" ) + str(self[ao]["maximumRange"]) + (" ["+ str(self[ao]["projectileRange"]) + "]" if self[ao]["projectileRange"] and self[ao]["projectileRange"] != self[ao]["maximumRange"] else "" )
 
       self[ao]["multiTargetMode"] = multiTargetMode[ao][self.id] if self.id in multiTargetMode[ao] else UNKNOWN
 
@@ -364,9 +371,8 @@ except:
 
 if(os.path.isfile('new.shipBuilder.py')):
   print "New version found! Restarting"
-  # Call the batch file to update here 
+  subprocess.call(['shipBuilder.exe'])
   exit()
-
 
 #check to see if there's a newer version of the data
 try:
@@ -446,10 +452,6 @@ for row in partRows.values():
     if part.isBuyable:
       buyablePartsByTypeAndRace[part.type][race].append(row)
 
-for mainWeapon in buyablePartsByTypeAndRace[WING_WEAPON][GUANTRI]:
-  print mainWeapon[1].id, mainWeapon[1].parentName
-
-
 def p(l):
   for i in l:
     print i
@@ -498,30 +500,25 @@ class Gunship(dict):
     else:
       self[key]=value
 
-
-
   def updateNumericValues(self):
     self.numWingWeapons = self.wings.part.numWingWeapons if self.wings.part else 1
-
+    self.ammoMod = 1.0
+    self.wingAmmoMod = 1.0
     if self.numWingWeapons == 1:
       self.wingWeapon2 = Gunship.PartSlot("Wing Weapon 2", WING_WEAPON, None)
     for attrib in Gunship.directSummableAttribs:
       self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part])
 
-    self.mainWeaponAmmo = self.mainWeapon.part.rawAmmo if self.mainWeapon.part else 0
-    self.wingWeapon1Ammo = self.wingWeapon1.part.rawAmmo if self.wingWeapon1.part else 0
-    self.wingWeapon2Ammo = self.wingWeapon2.part.rawAmmo if self.wingWeapon2.part else 0
     if self.numWingWeapons == 2:
-      self.wingWeapon1Ammo *= .8
-      self.wingWeapon2Ammo *= .8
+      self.wingAmmoMod *= .8
+
 
     self["class"] = min(8,max(1,self.grade / 100))
     if self.weightCapacity > 0:
       weightRatio = float(self.weightCost) / float(self.weightCapacity)
       if weightRatio <= 1:
-        self.mainWeaponAmmo  *= 1.0 + (1.0 - weightRatio)/2.0
-        self.wingWeapon1Ammo *= 1.0 + (1.0 - weightRatio)/2.0
-        self.wingWeapon2Ammo *= 1.0 + (1.0 - weightRatio)/2.0
+        self.ammoMod     *= 1.0 + (1.0 - weightRatio)/2.0
+        self.wingAmmoMod *= 1.0 + (1.0 - weightRatio)/2.0
       else:
         percentOver = (weightRatio - 1.0) * 100.0
         self.handling          *= 1.0-(16.0 + percentOver*44.0/20.0)/100.0
@@ -550,11 +547,30 @@ class Gunship(dict):
         self.energyRegen      *= 1.0-(8.0 + percentOver*22.0/20.0)/100.0
         self.ignitionResist   *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
         self.detonationResist *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
-
+    
     # round down
-    for attrib in ["mainWeaponAmmo", "wingWeapon1Ammo", "wingWeapon2Ammo", "handling", "comboResist", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
+    for attrib in ["handling", "comboResist", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
       self[attrib] = int(self[attrib])
 
+  def updateWeapons(self):
+    self.mainWeaponCopy = self.mainWeapon.part.copy() if self.mainWeapon.part else None
+    self.wingWeapon1Copy = self.wingWeapon1.part.copy() if self.wingWeapon1.part else None
+    self.wingWeapon2Copy = self.wingWeapon2.part.copy() if self.wingWeapon1.part else None
+
+    if self.mainWeaponCopy:
+      self.mainWeaponCopy.rawAmmo *= self.ammoMod
+    for wingWeapon in [self.wingWeapon1Copy, self.wingWeapon2Copy]:
+      if wingWeapon:
+        wingWeapon.rawAmmo *= self.wingAmmoMod
+
+    for weapon in [self.mainWeaponCopy, self.wingWeapon1Copy, self.wingWeapon2Copy]:
+      if weapon:
+        weapon.lockingTime *= 100.0/self.lockingSpeed
+        weapon.maximumRange *= self.targetingRange/100.0
+        self[ao]["shotCooldown"] = self[ao]["lockingTime"]
+
+        if weapon.lockRequired != NO:
+          pass
 
   def __init__(self, name, race, *args, **kw):
     super(Gunship,self).__init__(*args,**kw)
@@ -565,6 +581,7 @@ class Gunship(dict):
     self.type = GUNSHIP
     for key,value in self.partSlotsByField.iteritems():
       self[key] = value
+
   def serialize(self):
     return ",".join([self.name,str(self.race)] + [(str(self[fieldKey].part.id)+'-'+str(self[fieldKey].part.mark) if self[fieldKey].part else "0-0") for fieldKey in self.partFields])
 
@@ -617,6 +634,21 @@ class StatDisplayGrid(GridLayout):
   def setPart(self,part):
     self.part = part
     map((lambda child : child.setPart(part) if "setPart" in dir(child) else 0), walk(self))
+
+class ShipDisplay(StatDisplayGrid):
+
+  def __init__(self, **kwargs):
+    super(ShipDisplay,self).__init__(**kwargs)
+    self.cols = 1
+    self.rows = 2
+    resourcesAndResists = GridLayout(rows=1,cols=2)
+    resourcesAndResists.add_widget(BarResourceDisplay(row_default_height = 20, row_force_default = True, size_hint_x = .5))
+    resourcesAndResists.add_widget(ResistsGrid(row_default_height = 40, row_force_default = True))
+    partsAndStats = GridLayout(rows=1,cols=3)
+
+    partsAndStats.add_widget(PartNameList(row_default_height = 20, row_force_default = True))
+    partsAndStats.add_widget(StatsDisplay(row_default_height = 20, row_force_default = True, spacing = 2, padding = 5))
+    self.shipDisplay.add_widget(Widget(size_hint_y = 2))
 
 
 class StatsDisplay(GridLayout):
@@ -886,7 +918,25 @@ class ResistsGrid(GridLayout):
     self.updateDisplay()
 
 
+
+class SplitIcon(Widget):
+
+  def __init__(self, icon1, icon2, **kwargs):
+    super(SplitIcon, self).__init__(**kwargs)
+    self.texture1 = icon1.texture.get_region(0,0,32, 64)
+    self.texture2 = icon2.texture.get_region(32,0,32, 64)
+    with self.canvas:
+      Callback(self.drawMe)
+
+  def drawMe(self,*args):
+    minDim = min(self.width,self.height)
+    x = self.x + (self.width-minDim)/2
+    y = self.y + (self.height-minDim)/2
+    self.canvas.add(Rectangle(texture=self.texture1,pos=(x,y),size=(minDim/2,minDim)))
+    self.canvas.add(Rectangle(texture=self.texture2,pos=(x+minDim/2,y),size=(minDim/2,minDim)))
+
 class DamageTypeIcon(GridLayout):
+
   def __init__(self, damageTypes, **kwargs):
     super(DamageTypeIcon, self).__init__(**kwargs)
     self.rows = 1
@@ -896,14 +946,11 @@ class DamageTypeIcon(GridLayout):
     if len(icons) == 1:
       self.add_widget(icons[0])
     else:
-      icons[0].texture = icons[0].texture.get_region(0,0,icons[0].texture.width / 2, icons[0].texture.height)
-      icons[1].texture = icons[1].texture.get_region(icons[1].texture.width / 2,0,icons[1].texture.width / 2, icons[1].texture.height)
-      splitIcon = GridLayout(spacing = 0, rows = 1, cols = 2)
-      splitIcon.add_widget(icons[0])
-      splitIcon.add_widget(icons[1])
+      splitIcon = SplitIcon(icons[0],icons[1])
       self.add_widget(splitIcon)
 
     self.add_widget(Widget(size_hint_x = .2))
+
 
 
 class PartMarkButtons(GridLayout):
@@ -963,7 +1010,6 @@ class PartSelectScrollView(ScrollView):
     self.add_widget(self.layout)
 
   def setPart(self, part):
-    print part.id, part.mark
     pmb = self.buttonsByPartId[part.id]
     btn = pmb.buttonsByMark[part.mark]
     btn.state = "down"
@@ -1098,11 +1144,11 @@ class PartPicker(TabbedPanel):
     self.tabsBySlot = {}
     self.tab_width = 150
     self.tab_height = 20
-    self._tab_layout = StripLayout(cols=1, rows=99)
+    self._tab_layout = StripLayout(rows=13)
     self.cols = 1
     self._tab_strip = TabbedPanelStrip(
-                       tabbed_panel=self, rows=99,
-                       cols=1, size_hint=(None, None),
+                       tabbed_panel=self, rows=13,
+                       size_hint=(None, None),
                        height=self.tab_height, width=self.tab_width)
 
     self.do_default_tab = False
@@ -1145,51 +1191,41 @@ class ShipSelector(GridLayout):
     self.dropdown.bind(on_select=lambda instance, ship: self.changeShip(ship))
     self.add_widget(self.mainbutton)
     self.dropdown.select(currentShip)
-    nameChangeButton = Button(text = "rename",size_hint_y=1)
-    nameChangeButton.bind(on_release = self.doRenamePopup)
-    self.add_widget(nameChangeButton)
     newShipButton = Button(text = "New Ship",size_hint_y=1)
     newShipButton.bind(on_release = self.doNewShipPopup)
+    nameChangeButton = Button(text = "Rename",size_hint_y=1)
+    nameChangeButton.bind(on_release = self.doRenamePopup)
+
+    self.deleteShipButton = Button(text = "Delete", disabled = (len(self.ships) <= 1))
+    self.deleteShipButton.bind(on_release = self.doDeletePopup)
     self.add_widget(newShipButton)
-    self.gModeBtn = Button(text = getAO(), size_hint_y = 1)
-    self.gModeBtn.bind(on_release=self.alphaOmegaSwap)
-    self.add_widget(self.gModeBtn)
+    self.add_widget(nameChangeButton)
+    self.add_widget(self.deleteShipButton)
 
-    self._keyboard = Window.request_keyboard(self._keyboard_closed, self, 'text')
-    self._keyboard.bind(on_key_down=self._on_keyboard_down)
+  def doDeletePopup(self,*args):
+    popupContent = GridLayout(rows = 2, cols = 1)
+    popupContent.add_widget(Label(text = "Data will be lost forever! D:"))
+    confirmCancel = GridLayout(rows = 1, cols = 2)
+    confirm = Button(text = "Delete")
+    confirm.bind(on_release=self.doDelete)
+    cancel = Button(text = "Cancel")
+    cancel.bind(on_release=lambda btn: self.deleteShipPopup.dismiss())
+    self.deleteShipPopup = Popup(title="Delete ship "+currentShip.name +"?", content=popupContent, auto_dismiss=False, size_hint=(.2,.2))
+    confirmCancel.add_widget(confirm)
+    confirmCancel.add_widget(cancel)
+    popupContent.add_widget(confirmCancel)
+    self.deleteShipPopup.open()
 
-  def _keyboard_closed(self):
-    self._keyboard.unbind(on_key_down=self._on_keyboard_down)
-    self._keyboard = None
-
-  def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-    if keycode[1] == 'q':
-      self.alphaOmegaSwap(self.gModeBtn)
-      return True
-    return False
-
-
-  def alphaOmegaSwap(self, btn):
-    if(currentShip.race != GUANTRI):
-      if getAO() != ALPHA:
-        swapAO()
-        currentShip.updateNumericValues()
-        onShipUpdate()
-        onPartUpdate()
-      btn.text = getAO()
-      return
-  
-    btn.unbind(on_release=self.alphaOmegaSwap)
-    swapAO()
-    btn.text = getAO()
-    currentShip.updateNumericValues()
-    onShipUpdate()
-    onPartUpdate()
-    btn.bind(on_release=self.alphaOmegaSwap)
+  def doDelete(self, btn):
+    self.ships.remove(currentShip)
+    currentShip = self.ships[0]
+    self.changeShip(currentShip)
+    self.deleteShipButton.disabled = (len(self.ships) <= 1)
+    self.deleteShipPopup.dismiss()
 
   def doNewShipPopup(self,*args):
     popupContent = GridLayout(rows = 2, cols = 1)
-    newShipTextInput = ShipNameInput(focus=True, text="",multiline=False)
+    newShipTextInput = ShipNameInput(focus=True, text="",multiline=False, height = 20)
     newShipTextInput.race = HUMAN
     dropdown = DropDown()
     for race in races:
@@ -1197,20 +1233,24 @@ class ShipSelector(GridLayout):
       btn.race = race
       btn.bind(on_release=lambda btn:dropdown.select(btn))
       dropdown.add_widget(btn)
-    mainbutton = Button(text=raceToStringMap[HUMAN], color=raceToColorMap[HUMAN])
+    mainbutton = Button(text=raceToStringMap[HUMAN], color=raceToColorMap[HUMAN], height = 20)
     mainbutton.race = HUMAN
     mainbutton.bind(on_release=dropdown.open)
     dropdown.bind(on_select=lambda instance, btn: (map(lambda attr: mainbutton.__setattr__(attr,btn.__getattribute__(attr)), ["text","color","race"]) and False) or newShipTextInput.__setattr__("race",btn.race))
     popupContent.add_widget(mainbutton)
     popupContent.add_widget(newShipTextInput)
 
-    self.newShipPopup = Popup(title="New Ship", content=popupContent, auto_dismiss=False, size_hint=(.2,.2))
+    self.newShipPopup = Popup(title="New Ship", content=popupContent, auto_dismiss=False, size_hint=(.3,None))
     self.newShipPopup.open()
     newShipTextInput.bind(on_text_validate=self.doNewShip)
 
   def doNewShip(self,instance):
     global currentShip
     newName = instance.text
+    if not newName:
+      instance.parent.title="Error: Name cannot be empty"
+      instance.parent.title_color=(1,0,0,1)
+      instance.focus = True
     if newName in [ship.name for ship in self.ships]:
       instance.parent.title="Error: Name in use"
       instance.parent.title_color=(1,0,0,1)
@@ -1219,6 +1259,7 @@ class ShipSelector(GridLayout):
       currentShip = Gunship(instance.text,instance.race)
       self.ships.append(currentShip)
       self.changeShip(currentShip)
+      self.deleteShipButton.disabled = (len(self.ships) <= 1)
       self.newShipPopup.dismiss()
 
   def doRenamePopup(self,*args):
@@ -1260,6 +1301,7 @@ class ShipSelector(GridLayout):
     self.mainbutton.color = raceToColorMap[ship.race]
     self.callback()
 
+
 class ShipBuilder(GridLayout):
   def __init__(self,**kwargs):
     global onShipUpdate, onPartUpdate
@@ -1269,11 +1311,15 @@ class ShipBuilder(GridLayout):
     onShipUpdate = (lambda : self.shipDisplay.setPart(currentShip) )
     onPartUpdate = (lambda : self.partDisplay.setPart(currentPart) )
 
+    self.gModeBtn = Button(text = getAO(), size_hint_y = 1, size_hint_x = .5, disabled = True)
+    self.gModeBtn.bind(on_release=self.alphaOmegaSwap)
+
+    self._keyboard = Window.request_keyboard(self._keyboard_closed, self, 'text')
+    self._keyboard.bind(on_key_down=self._on_keyboard_down)
 
     self.partPickers = {}
     for race in races: 
       self.partPickers[race] = PartPicker(race = race,size_hint_x = .35)
-
 
     self.partDisplay = StatDisplayGrid(size_hint_x = .65, cols = 2, rows = 1) 
     self.partDisplay.add_widget(DescriptionBox(size_hint_x = .6))
@@ -1304,12 +1350,32 @@ class ShipBuilder(GridLayout):
 
     self.shipPicker = ShipSelector(self.onShipChange)
     self.bottomBar.add_widget(self.shipPicker)
+    self.bottomBar.add_widget(self.gModeBtn)
 
- 
-#    Clock.schedule_once((lambda dt: Window.set_title("ship factory")),-1)
+  def _keyboard_closed(self):
+    self._keyboard.unbind(on_key_down=self._on_keyboard_down)
+    self._keyboard = None
+
+  def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+    if keycode[1] == 'q' and currentShip.race == GUANTRI:
+      self.alphaOmegaSwap(self.gModeBtn)
+      return True
+    return False
+
+  def alphaOmegaSwap(self, btn):
+    btn.unbind(on_release=self.alphaOmegaSwap)
+    swapAO()
+    btn.text = getAO()
+    currentShip.updateNumericValues()
+    onShipUpdate()
+    onPartUpdate()
+    btn.bind(on_release=self.alphaOmegaSwap) 
   
 
   def onShipChange(self):
+    setAO(ALPHA)
+    self.gModeBtn.txt = ALPHA
+    self.gModeBtn.disabled = (currentShip.race != GUANTRI)
     self.shipDisplay.setPart(currentShip)
     self.topHalf.clear_widgets()
     pickerForRace = self.partPickers[currentShip.race]
@@ -1318,9 +1384,7 @@ class ShipBuilder(GridLayout):
     for tab in pickerForRace.tab_list:
       tab.updateColor()
 
-    Clock.schedule_once((lambda dt: (pickerForRace.switch_to(pickerForRace.tab_list[-1]) and False) or pickerForRace.tab_list[-1].on_release()),1) 
-
-
+    Clock.schedule_once((lambda dt: (pickerForRace.switch_to(pickerForRace.tab_list[2]) and False) or pickerForRace.tab_list[2].on_release()),1) 
 
 class ShipBuilderApp(App):
   def build(self):
@@ -1331,4 +1395,3 @@ class ShipBuilderApp(App):
 
 if __name__ == '__main__':
   ShipBuilderApp().run()
-
