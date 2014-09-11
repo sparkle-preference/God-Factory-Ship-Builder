@@ -80,8 +80,8 @@ races = [HUMAN, GUANTRI, AR, CHORION]
 raceToStringMap = { HUMAN:"Human", GUANTRI:"Guantri", AR:"Ar",  CHORION:"Chorion" }
 raceToColorMap = {HUMAN: (1,1,0,1), GUANTRI: (0,1,1,1), AR: (0,1,0,1), CHORION: (1,0,0,1)}
 
-NO = "No"
-YES = "Yes"
+OPTIONAL = "Optional"
+REQUIRED = "Required"
 RESET = "Reset"
 ADD = "Add"
 SPREAD = "Spread"
@@ -90,8 +90,8 @@ NA = "N/A"
 UNKNOWN = "???"
 
 projectilesPerTarget = { ALPHA: {214001: 1, 214002: 6,114007: 2,414000: 2,414005: 8,115002: 2,115007: 6,115010: 2,115011: 16,215001: 2,215007: 6,215013: 3,315003: 2,315010: 7,315012: 9,415005: 4,415006: 2,415002: 2,415014: 2}, OMEGA: { 214001: 2, 214002: 3 }}
-lockRequired = { ALPHA : { 214001: YES,114005: RESET,314000: RESET,314005: YES,314006: RESET,314007: YES,414002: YES,414005: YES,414007: YES,115001: YES,115002: YES,115007: RESET,115010: YES,115012: RESET,115011: YES,215001: YES,215003: RESET,215013: YES,315003: YES,315012: RESET,315007: RESET,315004: YES,315005: YES,415005: YES,415002: YES,415007: RESET,415014: RESET }, OMEGA: {214001: NO}}
-multiTargetMode = { ALPHA : {214003: NA, 114005: ADD, 114005: ADD, 214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
+lockRequired = { ALPHA : { 214001: REQUIRED,114005: RESET,314000: RESET,314005: REQUIRED,314006: RESET,314007: REQUIRED,414002: REQUIRED,414005: REQUIRED,414007: REQUIRED,115001: REQUIRED,115002: REQUIRED,115007: RESET,115010: REQUIRED,115012: RESET,115011: REQUIRED,215001: REQUIRED,215003: RESET,215013: REQUIRED,315003: REQUIRED,315012: RESET,315007: RESET,315004: REQUIRED,315005: REQUIRED,415005: REQUIRED,415002: REQUIRED,415007: RESET,415014: RESET }, OMEGA: {214001: OPTIONAL}}
+multiTargetMode = { ALPHA : {214003: NA, 114005: ADD, 114005: ADD, 314005: ADD, 214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
  
 # too lazy to hard code them all twice. Put placeholders for Guantri shit that's default in one mode but not in the other.
 for aoDict in [projectilesPerTarget, lockRequired, multiTargetMode]:
@@ -136,12 +136,16 @@ def mkInt(x):
 def mkFlt(x):
   return float(x) if re.match("^[-.0-9]+$",x) else 0
 
+def rstr(x):
+  return str(round(x,2)) if x.__class__ == float else str(x)
+
 class PartMark(dict):
-  attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "comboResist", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifesplan","fireRate","isBuyable"]
+  attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "comboResist", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifesplan","fireRate","isBuyable","Locking","cooldown"]
+  cooldownFinder = re.compile(""".*Cooldown\[-\]: ([0-9]*) secs""",flags=re.MULTILINE|re.DOTALL)
   def __getattr__(self, key):
     return self.__getitem__(key)
 
-  def __setattr__(self, key, value, alphaOmega = None):
+  def __setattr__(self, key, value):
     if key in PartMark.attribs:
       self[getAO()][key] = value
     else:
@@ -250,46 +254,56 @@ class PartMark(dict):
         self[ao]["parentName"] = names[self.id]["name"]
         self[ao]["displayName"] = names[self.id]["name"+str(self.mark)]
         self[ao]["description"] = names[self.id]["desc"+str(self.mark)]
+
+        cooldownMatch = re.match(PartMark.cooldownFinder,self[ao]["description"])
+        if cooldownMatch:
+          self[ao]["cooldown"] = mkFlt(cooldownMatch.group(1))
+
       self.updateNumericAttributes(ao)
 
-  def updateNumericAttributes(self,ao):
+  def updateNumericValues(self,ao):
     if self[ao]["type"] in [MAIN_WEAPON, WING_WEAPON]:
 
-      self[ao]["range"] = (str(self[ao]["minimumRange"]) + " - " if self[ao]["minimumRange"] else "" ) + str(self[ao]["maximumRange"]) + (" ["+ str(self[ao]["projectileRange"]) + "]" if self[ao]["projectileRange"] and self[ao]["projectileRange"] != self[ao]["maximumRange"] else "" )
+      # 0 accuracy = perfect
+      self[ao]["accuracy"] = str(self[ao]["accuracy"]) if self[ao]["accuracy"] else "Perfect"
+
+      self[ao]["range"] = (rstr(self[ao]["minimumRange"]) + " - " if self[ao]["minimumRange"] else "" ) + rstr(self[ao]["maximumRange"]) + (" ["+ rstr(self[ao]["projectileRange"]) + "]" if self[ao]["projectileRange"] and self[ao]["projectileRange"] != self[ao]["maximumRange"] else "" )
 
       self[ao]["multiTargetMode"] = multiTargetMode[ao][self.id] if self.id in multiTargetMode[ao] else UNKNOWN
 
-      self[ao]["lockRequired"] = lockRequired[ao][self.id] if self.id in lockRequired[ao] else NO
+      self[ao]["lockRequired"] = lockRequired[ao][self.id] if self.id in lockRequired[ao] else OPTIONAL
+
+      self[ao]["locking"] = rstr(self[ao]["lockingTime"])+"/"+self[ao]["lockRequired"] if self[ao]["lockingTime"] else "None"
 
       if self[ao]["lockRequired"] == RESET:
         self[ao]["shotCooldown"] = self[ao]["lockingTime"]
 
       if (self[ao]["shotCooldown"] < 1.0):
-        self[ao]["fireRate"] = str(1.0/self[ao]["shotCooldown"]) +"/s"
+        self[ao]["fireRate"] = rstr(1.0/self[ao]["shotCooldown"]) +"/s"
       else:
         self[ao]["fireRate"] = "1 shot / " + str(self[ao]["shotCooldown"]) +"s"
 
       if self.id in projectilesPerTarget[ao]:
         self[ao]["projectilesPerTarget"] = projectilesPerTarget[ao][self.id]
-        self[ao]["damage"] = str(self[ao]["rawDamage"]) + "x"+str(self[ao]["projectilesPerTarget"]) + " ("+str(self[ao]["rawDamage"]*self[ao]["projectilesPerTarget"])+")"
-        self[ao]["ammo"]  = str(self[ao]["rawAmmo"]) + "/"+str(self[ao]["projectilesPerTarget"]) + " ("+str(self[ao]["rawAmmo"]/self[ao]["projectilesPerTarget"])+")"
+        self[ao]["damage"] = rstr(self[ao]["rawDamage"]) + "x"+str(self[ao]["projectilesPerTarget"]) + " ("+str(self[ao]["rawDamage"]*self[ao]["projectilesPerTarget"])+")"
+        self[ao]["ammo"]  = rstr(self[ao]["rawAmmo"]) + "/"+str(self[ao]["projectilesPerTarget"]) + " ("+str(self[ao]["rawAmmo"]/self[ao]["projectilesPerTarget"])+")"
       else:
         self[ao]["projectilesPerTarget"] = 1
-        self[ao]["damage"] = str(self[ao]["rawDamage"])
-        self[ao]["ammo"]  = str(self[ao]["rawAmmo"])
+        self[ao]["damage"] = rstr(self[ao]["rawDamage"])
+        self[ao]["ammo"]  = rstr(self[ao]["rawAmmo"])
 
       if self[ao]["maxTargets"] > 1 and self[ao]["weaponType"] != "Wave":
         self[ao]["targets"] = str(self[ao]["maxTargets"])+"/"+self[ao]["multiTargetMode"]
 
-      self[ao]["DPS"] = self[ao]["projectilesPerTarget"]*self[ao]["rawDamage"]/self[ao]["shotCooldown"]
+      self[ao]["DPS"] = rstr(self[ao]["projectilesPerTarget"]*self[ao]["rawDamage"]/self[ao]["shotCooldown"])
       self[ao]["damagePerLoad"] = self[ao]["rawDamage"]*self[ao]["rawAmmo"] if self[ao]["weaponType"] != "Satellite" else "Infinite"
-      self[ao]["ammoLifesplan"] = str(self[ao]["rawAmmo"]*self[ao]["shotCooldown"] if self[ao]["weaponType"] != "Satellite" else "Infinite") + "s"
+      self[ao]["ammoLifesplan"] = rstr(self[ao]["rawAmmo"]*self[ao]["shotCooldown"] if self[ao]["weaponType"] != "Satellite" else "Infinite") + "s"
 
       if(self[ao]["weaponType"] == "Beam"):
         self[ao]["damage"] += "/s"
         self[ao]["damagePerLoad"] /= 10.0
         self[ao]["fireRate"] = "Continuous"
-        self[ao]["ammoLifesplan"] = str(self[ao]["rawAmmo"] / 10.0) + "s"
+        self[ao]["ammoLifesplan"] = rstr(self[ao]["rawAmmo"] / 10.0) + "s"
 
       if self.id == 315006:
         # Fuck. The. Mini.
@@ -547,30 +561,29 @@ class Gunship(dict):
         self.energyRegen      *= 1.0-(8.0 + percentOver*22.0/20.0)/100.0
         self.ignitionResist   *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
         self.detonationResist *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
-    
+
     # round down
     for attrib in ["handling", "comboResist", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
       self[attrib] = int(self[attrib])
 
-  def updateWeapons(self):
+    #TODO: Check to see if stuff like ability cooldown is calculated before display rounding by the game.
+    self.purgeCooldown = 180 * 100.0 / self.purgeCooldown
+    self.deviceCooldown = self.device.part.cooldown * 100.0 / self.abilityCooldown if self.device.part else None
+    self.addOnCooldown = self.addOn.part.cooldown   * 100.0 / self.abilityCooldown if self.addOn.part else None
+
+
+  def updateSubPartValues(self):
     self.mainWeaponCopy = self.mainWeapon.part.copy() if self.mainWeapon.part else None
     self.wingWeapon1Copy = self.wingWeapon1.part.copy() if self.wingWeapon1.part else None
     self.wingWeapon2Copy = self.wingWeapon2.part.copy() if self.wingWeapon1.part else None
 
-    if self.mainWeaponCopy:
-      self.mainWeaponCopy.rawAmmo *= self.ammoMod
-    for wingWeapon in [self.wingWeapon1Copy, self.wingWeapon2Copy]:
-      if wingWeapon:
-        wingWeapon.rawAmmo *= self.wingAmmoMod
-
     for weapon in [self.mainWeaponCopy, self.wingWeapon1Copy, self.wingWeapon2Copy]:
-      if weapon:
+      if weapon: 
+        weapon.rawAmmo *= self.ammoMod if weapon.type == MAIN_WEAPON else self.wingAmmoMod
         weapon.lockingTime *= 100.0/self.lockingSpeed
         weapon.maximumRange *= self.targetingRange/100.0
-        self[ao]["shotCooldown"] = self[ao]["lockingTime"]
+        weapon.updateNumericValues()
 
-        if weapon.lockRequired != NO:
-          pass
 
   def __init__(self, name, race, *args, **kw):
     super(Gunship,self).__init__(*args,**kw)
@@ -655,17 +668,21 @@ class StatsDisplay(GridLayout):
   sharedDisplayAttribs = [ "shield", "shieldRecharge", "energy", "energyRegen","speed", "boost", "handling", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange" ]
   extraAttribsByPart = {
     GUNSHIP: ["class"],
+    DEVICE: ["cooldown"], ADD_ON: ["cooldown"],
     HULL: ["weightCapacity"],
     POWER_CORE: ["powerCapacity"],
     COCKPIT: ["heatCapacity"],
     WINGS: ["numWingWeapons"],
-    MAIN_WEAPON: ["weaponType", "range", "accuracy", "ammo", "lockingTime", "lockRequired", "targets", "damage","DPS","damagePerLoad","ammoLifesplan","fireRate", "damageTypes" ],
-    WING_WEAPON: ["weaponType", "damage", "fireRate", "range", "accuracy", "ammo", "lockingTime", "lockRequired", "targets", "DPS", "damagePerLoad", "ammoLifesplan", "damageTypes" ]
+    MAIN_WEAPON: ["weaponType", "damage", "fireRate", "range", "ammo", "accuracy", "locking", "targets", "DPS", "damagePerLoad", "ammoLifesplan", "damageTypes" ]
   }
-  def __init__(self, **kwargs):
+
+  extraAttribsByPart[WING_WEAPON] = extraAttribsByPart[MAIN_WEAPON]
+
+  def __init__(self, overrideDisplayAttribs = None, **kwargs):
     super(StatsDisplay, self).__init__(**kwargs)
     self.displayAttribs = StatsDisplay.sharedDisplayAttribs
     self.extraAttribs = []
+    self.overrideDisplayAttribs = overrideDisplayAttribs
     self.cols = 2
     self.part = None
 
@@ -674,7 +691,7 @@ class StatsDisplay(GridLayout):
     self.clear_widgets()
     if self.part:
       part = self.part
-      for attrib in self.extraAttribs + self.displayAttribs:
+      for attrib in (self.overrideDisplayAttribs if self.overrideDisplayAttribs else self.extraAttribs + self.displayAttribs):
         if not attrib in part:
           continue
         if not part[attrib]:
@@ -686,7 +703,7 @@ class StatsDisplay(GridLayout):
         if attrib == "damageTypes":
           self.add_widget(DamageTypeIcon(part[attrib]))
         else:
-          self.add_widget(Label(text=str(part[attrib]), halign='right'))
+          self.add_widget(Label(text=rstr(part[attrib]), halign='right'))
     self.add_widget(Widget())
     self.add_widget(Widget())
 
@@ -1393,5 +1410,5 @@ class ShipBuilderApp(App):
   def on_stop(self):
     self.shipBuilder.shipPicker.saveShips()
 
-if __name__ == '__main__':
-  ShipBuilderApp().run()
+# if __name__ == '__main__':
+#   ShipBuilderApp().run()
