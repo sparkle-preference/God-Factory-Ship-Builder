@@ -44,103 +44,118 @@ from kivy.graphics import Color,Rectangle,Line
 from kivy.graphics.instructions import Callback
 from kivy.uix.textinput import TextInput
 from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.stacklayout import StackLayout
 
-ALPHA = "Alpha"
-OMEGA = "Omega"
 
-yyTrans={"Yin":ALPHA, "Yan":OMEGA}
+if True: # constant defs
+  ALPHA = "Alpha"
+  OMEGA = "Omega"
 
-weaponTypeTrans={"Gunship_PartKeyword_Cannon":"Cannon", "Gunship_PartKeyword_Satellite":"Satellite", "Gunship_PartKeyword_Mines":"Mines", "Gunship_PartKeyword_Beam":"Beam", "Gunship_PartKeyword_Wave":"Wave", "Gunship_PartKeyword_Scattergun":"Scattergun", "Gunship_PartKeyword_Homing":"Homing", "Gunship_PartKeyword_Bombing":"Bombing", "Gunship_PartKeyword_Machinegun":"Machine Gun"} 
-HULL = "HULL"
-COCKPIT = "COCKPIT"
-WINGS = "WINGS"
-THRUSTERS = "THRUSTERS"
-POWER_CORE = "POWER_CORE"
-SHIELD_GENERATOR = "SHIELD_GENERATOR"
-MAIN_COMPUTER = "MAIN_COMPUTER"
-WEAPON_CONTROL_UNIT = "WEAPON_CONTROL_UNIT"
-DEVICE = "DEVICE"
-ADD_ON = "ADD_ON"
-MAIN_WEAPON = "MAIN_WEAPON"
-WING_WEAPON = "WING_WEAPON"
+  yyTrans={"Yin":ALPHA, "Yan":OMEGA}
 
-GUNSHIP = "GUNSHIP"
+  CANNON="Cannon"
+  SATELLITE="Satellite"
+  MINES="Mines"
+  BEAM="Beam"
+  WAVE="Wave"
+  SCATTERGUN="Scattergun"
+  HOMING="Homing"
+  BOMBING="Bombing"
+  MACHINE_GUN="Machine Gun"
 
-partTypes=[HULL,COCKPIT,WINGS,THRUSTERS,POWER_CORE,SHIELD_GENERATOR,MAIN_COMPUTER,WEAPON_CONTROL_UNIT,DEVICE,ADD_ON,MAIN_WEAPON,WING_WEAPON]
+  weaponTypeTrans={"Gunship_PartKeyword_Cannon":CANNON, "Gunship_PartKeyword_Satellite":SATELLITE, "Gunship_PartKeyword_Mines":MINES, "Gunship_PartKeyword_Beam":BEAM, "Gunship_PartKeyword_Wave":WAVE, "Gunship_PartKeyword_Scattergun":SCATTERGUN, "Gunship_PartKeyword_Homing":HOMING, "Gunship_PartKeyword_Bombing":BOMBING, "Gunship_PartKeyword_Machinegun":MACHINE_GUN} 
+  HULL = "HULL"
+  COCKPIT = "COCKPIT"
+  WINGS = "WINGS"
+  THRUSTERS = "THRUSTERS"
+  POWER_CORE = "POWER_CORE"
+  SHIELD_GENERATOR = "SHIELD_GENERATOR"
+  MAIN_COMPUTER = "MAIN_COMPUTER"
+  WEAPON_CONTROL_UNIT = "WEAPON_CONTROL_UNIT"
+  DEVICE = "DEVICE"
+  ADD_ON = "ADD_ON"
+  MAIN_WEAPON = "MAIN_WEAPON"
+  WING_WEAPON = "WING_WEAPON"
 
-damageTypes = [ 'Detonation', 'Overload', 'Ignition', 'Distortion', 'Decay', 'Perforation']
+  GUNSHIP = "GUNSHIP"
 
-HUMAN = 1
-GUANTRI = 2
-AR = 3
-CHORION = 4
+  partTypes=[HULL,COCKPIT,WINGS,THRUSTERS,POWER_CORE,SHIELD_GENERATOR,MAIN_COMPUTER,WEAPON_CONTROL_UNIT,DEVICE,ADD_ON,MAIN_WEAPON,WING_WEAPON]
 
-races = [HUMAN, GUANTRI, AR, CHORION]
+  damageTypes = [ 'Detonation', 'Overload', 'Ignition', 'Distortion', 'Decay', 'Perforation']
 
-raceToStringMap = { HUMAN:"Human", GUANTRI:"Guantri", AR:"Ar",  CHORION:"Chorion" }
-raceToColorMap = {HUMAN: (1,1,0,1), GUANTRI: (0,1,1,1), AR: (0,1,0,1), CHORION: (1,0,0,1)}
+  HUMAN = 1
+  GUANTRI = 2
+  AR = 3
+  CHORION = 4
 
-OPTIONAL = "Optional"
-REQUIRED = "Required"
-RESET = "Reset"
-ADD = "Add"
-SPREAD = "Spread"
-DIVIDE = "Divide"
-NA = "N/A"
-UNKNOWN = "???"
+  races = [HUMAN, GUANTRI, AR, CHORION]
 
-projectilesPerTarget = { ALPHA: {214001: 1, 214002: 6,114007: 2,414000: 2,414005: 8,115002: 2,115007: 6,115010: 2,115011: 16,215001: 2,215007: 6,215013: 3,315003: 2,315010: 7,315012: 9,415005: 4,415006: 2,415002: 2,415014: 2}, OMEGA: { 214001: 2, 214002: 3 }}
-lockRequired = { ALPHA : { 214001: REQUIRED,114005: RESET,314000: RESET,314005: REQUIRED,314006: RESET,314007: REQUIRED,414002: REQUIRED,414005: REQUIRED,414007: REQUIRED,115001: REQUIRED,115002: REQUIRED,115007: RESET,115010: REQUIRED,115012: RESET,115011: REQUIRED,215001: REQUIRED,215003: RESET,215013: REQUIRED,315003: REQUIRED,315012: RESET,315007: RESET,315004: REQUIRED,315005: REQUIRED,415005: REQUIRED,415002: REQUIRED,415007: RESET,415014: RESET }, OMEGA: {214001: OPTIONAL}}
-multiTargetMode = { ALPHA : {214003: NA, 114005: ADD, 114005: ADD, 314005: ADD, 214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
- 
-# too lazy to hard code them all twice. Put placeholders for Guantri shit that's default in one mode but not in the other.
-for aoDict in [projectilesPerTarget, lockRequired, multiTargetMode]:
-  for key in aoDict[ALPHA]:
-    if key not in aoDict[OMEGA]:
-      aoDict[OMEGA][key] = aoDict[ALPHA][key] 
+  raceToStringMap = { HUMAN:"Human", GUANTRI:"Guantri", AR:"Ar",  CHORION:"Chorion" }
+  raceToColorMap = {HUMAN: (1,1,0,1), GUANTRI: (0,1,1,1), AR: (0,1,0,1), CHORION: (1,0,0,1)}
 
-def partCompareAO(part):
-  if len(part[OMEGA]) < len(part[ALPHA]):
-    return True
-  return reduce((lambda p, q: p and q),[ part[ALPHA][i].rawVals[0:16] == part[OMEGA][i].rawVals[0:16] and part[ALPHA][i].rawVals[17:] == part[OMEGA][i].rawVals[17:] for i in part[ALPHA].keys()],True)
+  INFINITY = u"\u221E".encode('utf-8')
 
-def camelToReadable(camelString):
-  if camelString.isupper():
-    return camelString #Support acronyms. (DPS)
-  return camelString[0].upper()+''.join([ c if c.islower() else " "+c for c in camelString[1:]])
+  OPTIONAL = "Optional"
+  REQUIRED = "Required"
+  RESET = "Reset"
+  ADD = "Add"
+  SPREAD = "Spread"
+  DIVIDE = "Divide"
+  NA = "N/A"
+  UNKNOWN = "???"
 
-AO=ALPHA
-def getAO():
-  global AO
-  return AO
+  projectilesPerTarget = { ALPHA: {214001: 1, 214002: 6,114007: 2,414000: 2,414005: 8,115002: 2,115007: 6,115010: 2,115011: 16,215001: 2,215007: 6,215013: 3,315003: 2,315010: 7,315012: 9,415005: 4,415006: 2,415002: 2,415014: 2}, OMEGA: { 214001: 2, 214002: 3 }}
+  lockRequired = { ALPHA : { 214001: REQUIRED,114005: RESET,314000: RESET,314005: REQUIRED,314006: RESET,314007: REQUIRED,414002: REQUIRED,414005: REQUIRED,414007: REQUIRED,115001: REQUIRED,115002: REQUIRED,115007: RESET,115010: REQUIRED,115012: RESET,115011: REQUIRED,215001: REQUIRED,215003: RESET,215013: REQUIRED,315003: REQUIRED,315012: RESET,315007: RESET,315004: REQUIRED,315005: REQUIRED,415005: REQUIRED,415002: REQUIRED,415007: RESET,415014: RESET }, OMEGA: {214001: OPTIONAL}}
+  multiTargetMode = { ALPHA : {214003: NA, 114005: ADD, 114005: ADD, 314005: ADD, 214005: SPREAD, 214002: DIVIDE,414005: DIVIDE,115002: DIVIDE,115010: DIVIDE,115011: DIVIDE,215001: DIVIDE,215003: ADD,215013: DIVIDE,315003: DIVIDE,315004: ADD,415005: DIVIDE }, OMEGA: {215001: DIVIDE,215003: ADD,215013: DIVIDE, 214002: ADD, 214003: SPREAD,214005: NA} }
+   
+  # too lazy to hard code them all twice. Put placeholders for Guantri shit that's default in one mode but not in the other.
+  for aoDict in [projectilesPerTarget, lockRequired, multiTargetMode]:
+    for key in aoDict[ALPHA]:
+      if key not in aoDict[OMEGA]:
+        aoDict[OMEGA][key] = aoDict[ALPHA][key] 
 
-def swapAO():
-  global AO
-  AO =  OMEGA if AO == ALPHA else ALPHA
+  def partCompareAO(part):
+    if len(part[OMEGA]) < len(part[ALPHA]):
+      return True
+    return reduce((lambda p, q: p and q),[ part[ALPHA][i].rawVals[0:16] == part[OMEGA][i].rawVals[0:16] and part[ALPHA][i].rawVals[17:] == part[OMEGA][i].rawVals[17:] for i in part[ALPHA].keys()],True)
 
-def setAO(x):
-  global AO
-  if x in [ALPHA, OMEGA]:
-    AO = x
+  def camelToReadable(camelString):
+    if camelString.isupper():
+      return camelString #Support acronyms. (DPS)
+    return camelString[0].upper()+''.join([ c if c.islower() else " "+c for c in camelString[1:]])
 
-def aoInv(x):
-  if x == ALPHA:
-    return OMEGA
-  if x == OMEGA:
-    return ALPHA
-  return ALPHA #The inverse of bad data is the beginning.
+  AO=ALPHA
+  def getAO():
+    global AO
+    return AO
 
-def mkInt(x):
-  return int(x) if re.match("^[0-9-]+$",x) else 0
+  def swapAO():
+    global AO
+    AO =  OMEGA if AO == ALPHA else ALPHA
 
-def mkFlt(x):
-  return float(x) if re.match("^[-.0-9]+$",x) else 0
+  def setAO(x):
+    global AO
+    if x in [ALPHA, OMEGA]:
+      AO = x
 
-def rstr(x):
-  return str(round(x,2)) if x.__class__ == float else str(x)
+  def aoInv(x):
+    if x == ALPHA:
+      return OMEGA
+    if x == OMEGA:
+      return ALPHA
+    return ALPHA #The inverse of bad data is the beginning.
+
+  def mkInt(x):
+    return int(x) if re.match("^[0-9-]+$",x) else 0
+
+  def mkFlt(x):
+    return float(x) if re.match("^[-.0-9]+$",x) else 0
+
+  def rstr(x):
+    return str(round(x,2)) if x.__class__ == float else str(x)
 
 class PartMark(dict):
-  attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "comboResist", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifesplan","fireRate","isBuyable","Locking","cooldown"]
+  attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifespan","fireRate","isBuyable","Locking","cooldown"]
   cooldownFinder = re.compile(""".*Cooldown\[-\]: ([0-9]*) secs""",flags=re.MULTILINE|re.DOTALL)
   def __getattr__(self, key):
     return self.__getitem__(key)
@@ -173,12 +188,19 @@ class PartMark(dict):
     if not self[OMEGA] and other[OMEGA]:
       self[OMEGA] = other[OMEGA]
 
-  def __init__(self, partVals,names, *args, **kw):    
+  def __init__(self, *args, **kw):
     self[ALPHA] = {}
     self[OMEGA] = {}
     super(PartMark,self).__init__(*args,**kw)
-    ao = yyTrans[partVals[17]]
 
+  def copy(self):
+    retval = PartMark()
+    retval[ALPHA] = self[ALPHA].copy()
+    retval[OMEGA] = self[OMEGA].copy()
+    return PartMark(Alpha = self[ALPHA].copy(), Omega = self[OMEGA].copy())
+
+  def init(self,partVals,names):
+    ao = yyTrans[partVals[17]]
     self.id = int(partVals[0])
     self.mark = int(partVals[15][2])
     self[ao]["id"] = int(partVals[0])
@@ -216,7 +238,7 @@ class PartMark(dict):
     self[ao]["ignitionResist"] = mkInt(partVals[35])
     self[ao]["overloadResist"] = mkInt(partVals[36])
     self[ao]["detonationResist"] = mkInt(partVals[37])
-    self[ao]["comboResist"] = mkInt(partVals[38])
+    self[ao]["protection"] = mkInt(partVals[38])
     self[ao]["handling"] = mkInt(partVals[39])
     self[ao]["numWingWeapons"] = mkInt(partVals[40])
     self[ao]["speed"] = mkInt(partVals[41])
@@ -259,7 +281,8 @@ class PartMark(dict):
         if cooldownMatch:
           self[ao]["cooldown"] = mkFlt(cooldownMatch.group(1))
 
-      self.updateNumericAttributes(ao)
+      self.updateNumericValues(ao)
+    return self
 
   def updateNumericValues(self,ao):
     if self[ao]["type"] in [MAIN_WEAPON, WING_WEAPON]:
@@ -292,32 +315,31 @@ class PartMark(dict):
         self[ao]["damage"] = rstr(self[ao]["rawDamage"])
         self[ao]["ammo"]  = rstr(self[ao]["rawAmmo"])
 
-      if self[ao]["maxTargets"] > 1 and self[ao]["weaponType"] != "Wave":
+      if self[ao]["maxTargets"] > 1 and self[ao]["weaponType"] != WAVE:
         self[ao]["targets"] = str(self[ao]["maxTargets"])+"/"+self[ao]["multiTargetMode"]
 
-      self[ao]["DPS"] = rstr(self[ao]["projectilesPerTarget"]*self[ao]["rawDamage"]/self[ao]["shotCooldown"])
-      self[ao]["damagePerLoad"] = self[ao]["rawDamage"]*self[ao]["rawAmmo"] if self[ao]["weaponType"] != "Satellite" else "Infinite"
-      self[ao]["ammoLifesplan"] = rstr(self[ao]["rawAmmo"]*self[ao]["shotCooldown"] if self[ao]["weaponType"] != "Satellite" else "Infinite") + "s"
+      self[ao]["DPS"] = self[ao]["projectilesPerTarget"]*self[ao]["rawDamage"]/self[ao]["shotCooldown"]
+      self[ao]["damagePerLoad"] = self[ao]["rawDamage"]*self[ao]["rawAmmo"] if self[ao]["weaponType"] != SATELLITE else INFINITY
+      self[ao]["ammoLifespan"] = rstr(self[ao]["rawAmmo"]*self[ao]["shotCooldown"]) + "s"if self[ao]["weaponType"] != SATELLITE else INFINITY
 
-      if(self[ao]["weaponType"] == "Beam"):
+      if(self[ao]["weaponType"] == BEAM):
         self[ao]["damage"] += "/s"
+        self[ao]["DPS"] = self[ao]["rawDamage"]
         self[ao]["damagePerLoad"] /= 10.0
         self[ao]["fireRate"] = "Continuous"
-        self[ao]["ammoLifesplan"] = rstr(self[ao]["rawAmmo"] / 10.0) + "s"
+        self[ao]["ammoLifespan"] = rstr(self[ao]["rawAmmo"] / 10.0) + "s"
 
       if self.id == 315006:
         # Fuck. The. Mini.
         numMiniShots = int(self[ao]["rawAmmo"]-1)/5
         self[ao]["DPS"] = self[ao]["rawDamage"] / 5.0
         self[ao]["damagePerLoad"] = numMiniShots * self[ao]["rawDamage"]
-        self[ao]["ammoLifesplan"] = str(numMiniShots*5) + " seconds"
+        self[ao]["ammoLifespan"] = rstr(numMiniShots*5) + "s"
         self[ao]["fireRate"] = "1 shot / 5s"
 
 
 
 
-     # if self[ao]["projectilesPerTarget"] > 1:
-      #   self[ao]["ammo"] = self[ao]["ammo"] / 
 
 class Trait:
   triggerTypes = {'All Green', 'Passive', 'Contained', 'Warrior', 'Drift', 'Attacker', 'Savior', 'Response', 'Harvester', 'Vengeance', 'Velocity', 'Relentless', 'Weapon Mod', 'Sentinel', 'Defender', 'Red Alert'}
@@ -328,7 +350,7 @@ class Trait:
     self.descStr = re.sub("Trait_Prop[a-zA-Z_]*",traitPropTrans, re.sub("\{([0-9])_([0-9])\}",lambda m: effects[int(m.group(1))-1][int(m.group(2))],desc).replace('\\n','\n'))
     self.displayStr = triggerTrans(nameAndId[1])
 
-
+# Ok so i didn't feel like scanning memory for these strings and getting the localized versions. Instead we do this bullshit. You're welcome, everyone!
 miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
 triggerTypeTrans = {'Cnt':'Contained','Pas':'Passive', 'Dft': 'Drift', 'Rel': 'Relentless', 'Ven': 'Vengeance', 'Har': 'Harvester', 'Vel': 'Velocity', 'Red': 'Red Alert', 'War': 'Warrior', 'Rsp': 'Response', 'Att': 'Attacker', 'Def': 'Defender','All': 'All Green','Sen': 'Sentinel','Sav': 'Savior'}
 firstWordTrans = {'Loc' : "Locking Speed",'Amp' : "Amplify",'Mob' : "Mobility",'Cld' : "Ability Cooldown",'Res' : "Resistances",'Spd' : "Speed",'Eng' : "Engines",'Nrg' : "Restore Energy",'ER'  : "Energy Regen",'Trn' : "Transmission",'Tgt' : "Targeting",'Sys' : "Systems",'Sur' : "Survival",'Rng' : "Targeting Range",'Area': "Targeting Area",'Hnd' : "Handling",'Amp' : "Amplify",'Dep' : "Deplete",'Rst' : "Restore",'Rft' : "Reflect",'Pur' : "Purge Cooldown",'Coo' : "Cooling"}
@@ -446,7 +468,7 @@ partRows = {}
 
 partsDump = open('parts.'+version+'.dump').read()
 for row in partsDump.replace('|','\n').splitlines():
-  partRow = PartMark(row.split(':'),partStrings)
+  partRow = PartMark().init(row.split(':'),partStrings)
   if partRow.id not in partRows:
     partRows[partRow.id] = {}
   if partRow.mark not in partRows[partRow.id]:
@@ -483,7 +505,7 @@ class Gunship(dict):
   PartSlot = namedtuple('PartSlot', 'name type part')
   partFields = ["hull","cockpit","wings","thrusters","powerCore","shieldGenerator","mainComputer","weaponControlUnit","device","addOn","mainWeapon","wingWeapon1","wingWeapon2"]
   partSlotsByField = { "hull": PartSlot("Hull", HULL, None), "cockpit": PartSlot("Cockpit", COCKPIT, None), "wings": PartSlot("Wings", WINGS, None), "thrusters": PartSlot("Thrusters", THRUSTERS, None), "powerCore": PartSlot("Power Core", POWER_CORE, None), "shieldGenerator": PartSlot("Shield Generator", SHIELD_GENERATOR, None), "mainComputer": PartSlot("Main Computer", MAIN_COMPUTER, None), "weaponControlUnit": PartSlot("WCU", WEAPON_CONTROL_UNIT, None), "device": PartSlot("Device", DEVICE, None), "addOn": PartSlot("Add-on", ADD_ON, None), "mainWeapon": PartSlot("Main Weapon", MAIN_WEAPON, None), "wingWeapon1": PartSlot("Wing Weapon 1", WING_WEAPON, None), "wingWeapon2": PartSlot("Wing Weapon 2", WING_WEAPON, None) }
-  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "comboResist", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown"]
+  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingRange"]
   def __getattr__(self, key):
     return self[key]
 
@@ -536,7 +558,7 @@ class Gunship(dict):
       else:
         percentOver = (weightRatio - 1.0) * 100.0
         self.handling          *= 1.0-(16.0 + percentOver*44.0/20.0)/100.0
-        self.comboResist       *= 1.0-(16.0 + percentOver*44.0/20.0)/100.0
+        self.protection       *= 1.0-(16.0 + percentOver*44.0/20.0)/100.0
         self.perforationResist *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
         self.distortionResist  *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
 
@@ -563,11 +585,11 @@ class Gunship(dict):
         self.detonationResist *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
 
     # round down
-    for attrib in ["handling", "comboResist", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
+    for attrib in ["handling", "protection", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
       self[attrib] = int(self[attrib])
 
     #TODO: Check to see if stuff like ability cooldown is calculated before display rounding by the game.
-    self.purgeCooldown = 180 * 100.0 / self.purgeCooldown
+    self.purgeCooldown = 180 * 100.0 / self.purgeCooldown if self.purgeCooldown else INFINITY
     self.deviceCooldown = self.device.part.cooldown * 100.0 / self.abilityCooldown if self.device.part else None
     self.addOnCooldown = self.addOn.part.cooldown   * 100.0 / self.abilityCooldown if self.addOn.part else None
 
@@ -575,14 +597,30 @@ class Gunship(dict):
   def updateSubPartValues(self):
     self.mainWeaponCopy = self.mainWeapon.part.copy() if self.mainWeapon.part else None
     self.wingWeapon1Copy = self.wingWeapon1.part.copy() if self.wingWeapon1.part else None
-    self.wingWeapon2Copy = self.wingWeapon2.part.copy() if self.wingWeapon1.part else None
-
+    self.wingWeapon2Copy = self.wingWeapon2.part.copy() if self.wingWeapon2.part else None
+    wingWeapons = [ww for ww in [self.wingWeapon1Copy, self.wingWeapon2Copy] if ww and ww.weaponType != MINES ] #Mines aren't really a relevant part of DPS or ammo lifespan.
+    
     for weapon in [self.mainWeaponCopy, self.wingWeapon1Copy, self.wingWeapon2Copy]:
       if weapon: 
         weapon.rawAmmo *= self.ammoMod if weapon.type == MAIN_WEAPON else self.wingAmmoMod
         weapon.lockingTime *= 100.0/self.lockingSpeed
         weapon.maximumRange *= self.targetingRange/100.0
-        weapon.updateNumericValues()
+        weapon.updateNumericValues(getAO())
+
+
+    if self.mainWeaponCopy and wingWeapons:
+      mainLS = mkFlt(self.mainWeaponCopy.ammoLifespan[:-1])
+      wingLS = [ mkFlt(ww.ammoLifespan[:-1]) for ww in wingWeapons if ww.weaponType != SATELLITE ]
+
+      if SATELLITE in [weapon.weaponType for weapon in wingWeapons]:
+        self.ammoLifespan = str(mainLS)+"s/" + (str(max(wingLS)) + "s/" if wingLS and max(wingLS) > mainLS else "") + INFINITY
+      else:
+        self.ammoLifespan = str(min(mainLS,max(wingLS)))+"s/" + str(max(mainLS,max(wingLS)))+"s"
+
+      mainDPS = self.mainWeaponCopy.DPS
+      self.DPS = [(mainDPS+ww[0],[(mainDPS,self.mainWeaponCopy.damageTypes), ww]) for ww in sorted([(weapon.DPS,weapon.damageTypes) for weapon in wingWeapons], key=lambda x: x[0], reverse=True)]
+      dplList = [(weapon.damagePerLoad,weapon.damageTypes) for weapon in ([self.mainWeaponCopy] + wingWeapons)]
+      self.damagePerLoad = (sum([dpl[0] for dpl in dplList if dpl != INFINITY]),dplList)
 
 
   def __init__(self, name, race, *args, **kw):
@@ -654,26 +692,80 @@ class ShipDisplay(StatDisplayGrid):
     super(ShipDisplay,self).__init__(**kwargs)
     self.cols = 1
     self.rows = 2
-    resourcesAndResists = GridLayout(rows=1,cols=2)
+    
+    resourcesAndResists = GridLayout(rows=1,cols=2, size_hint_y=.2)
+    partsAndStats = GridLayout(rows=1,cols=3, size_hint_y=.8)
+
     resourcesAndResists.add_widget(BarResourceDisplay(row_default_height = 20, row_force_default = True, size_hint_x = .5))
     resourcesAndResists.add_widget(ResistsGrid(row_default_height = 40, row_force_default = True))
-    partsAndStats = GridLayout(rows=1,cols=3)
 
-    partsAndStats.add_widget(PartNameList(row_default_height = 20, row_force_default = True))
-    partsAndStats.add_widget(StatsDisplay(row_default_height = 20, row_force_default = True, spacing = 2, padding = 5))
-    self.shipDisplay.add_widget(Widget(size_hint_y = 2))
+    partsAndStats.add_widget(PartNameList(row_default_height = 20, row_force_default = True, size_hint_x = .15))
+    partsAndStats.add_widget(ShipSpecial(size_hint_x = .55))
+    partsAndStats.add_widget(StatsDisplay(row_default_height = 20, row_force_default = True, spacing = 2, padding = 5, size_hint_x=.3))
+    self.add_widget(resourcesAndResists)
+    self.add_widget(partsAndStats)
 
+class ShipSpecial(GridLayout):
+  def __init__(self, **kwargs):
+    super(ShipSpecial,self).__init__(**kwargs)
+    self.cols = 1
+
+  def updateDisplay(self):
+    self.clear_widgets()
+    ship = self.part
+    if ship:
+      ship.updateNumericValues()
+      ship.updateSubPartValues()
+      cooldownGrid = GridLayout(row_default_height = 20, row_force_default = True, cols = 2)
+      if ship.device.part:
+        cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
+        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
+      if ship.addOn.part:
+        cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
+        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s", halign='left'))
+      weaponOverview = GridLayout(row_default_height = 20, row_force_default = True, cols = 2)
+      weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left', size_hint_x = .6))
+      weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
+      dpsAppend = 1 if len(ship.DPS) == 2 else ""
+      for (total,partsWithIcons) in ship.DPS:
+        weaponOverview.add_widget(AlignedLabel(text="DPS" + (" ("+str(dpsAppend)+")" if dpsAppend else ""), halign='left'))
+        if dpsAppend:
+          dpsAppend+=1
+        dpsLine = GridLayout(rows = 1)
+        dpsLine.add_widget(Label(text = rstr(total)))
+        dpsLine.add_widget(Label(text = ' ('))
+        for (part,damageType) in partsWithIcons:
+          dpsLine.add_widget(Label(text = rstr(part)))
+          dpsLine.add_widget(DamageTypeIcon(damageType))
+        dpsLine.add_widget(Label(text = ')'))
+        weaponOverview.add_widget(dpsLine)
+      weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
+      dplLine = GridLayout(rows = 1)
+      dplLine.add_widget(AlignedLabel(ship.damagePerLoad[0]))
+        for (part,wName,damageType) in partsWithIcons:
+          dpsLine.add_widget(Label(text = rstr(part)))
+          dpsLine.add_widget(DamageTypeIcon(damageType))
+        self.add_widget(Widget(size_hint_x))
+
+      self.add_widget(cooldownGrid)
+      self.add_widget(weaponOverview)
+#      for weapon in 
+
+
+
+
+  def setPart(self, part):
+    self.part = part
+    self.updateDisplay()
 
 class StatsDisplay(GridLayout):
   sharedDisplayAttribs = [ "shield", "shieldRecharge", "energy", "energyRegen","speed", "boost", "handling", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange" ]
   extraAttribsByPart = {
     GUNSHIP: ["class"],
     DEVICE: ["cooldown"], ADD_ON: ["cooldown"],
-    HULL: ["weightCapacity"],
-    POWER_CORE: ["powerCapacity"],
-    COCKPIT: ["heatCapacity"],
+    HULL: ["weightCapacity"], POWER_CORE: ["powerCapacity"], COCKPIT: ["heatCapacity"],
     WINGS: ["numWingWeapons"],
-    MAIN_WEAPON: ["weaponType", "damage", "fireRate", "range", "ammo", "accuracy", "locking", "targets", "DPS", "damagePerLoad", "ammoLifesplan", "damageTypes" ]
+    MAIN_WEAPON: ["weaponType", "damage", "fireRate", "range", "ammo", "accuracy", "locking", "targets", "DPS", "damagePerLoad", "ammoLifespan" ]
   }
 
   extraAttribsByPart[WING_WEAPON] = extraAttribsByPart[MAIN_WEAPON]
@@ -696,11 +788,17 @@ class StatsDisplay(GridLayout):
           continue
         if not part[attrib]:
           continue
-        if attrib == "DPS" and "weaponType" in part and part["weaponType"] == "Beam":
+        if attrib == "DPS" and "weaponType" in part and part.weaponType == BEAM:
           continue
-        self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left'))  
+
+        self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left'))
         # sorry, not sorry
-        if attrib == "damageTypes":
+        if attrib in ["DPS", "damage"]:
+          damageWithIcon = GridLayout(cols = 2, rows = 1)
+          damageWithIcon.add_widget(Label(text=rstr(part[attrib])))
+          damageWithIcon.add_widget(DamageTypeIcon(part.damageTypes))
+          self.add_widget(damageWithIcon)
+        elif attrib == "damageTypes":
           self.add_widget(DamageTypeIcon(part[attrib]))
         else:
           self.add_widget(Label(text=rstr(part[attrib]), halign='right'))
@@ -923,12 +1021,12 @@ class ResistsGrid(GridLayout):
     for dType in self.normalResistAttribs:
       normalResists.add_widget(Image(source="icons/"+dType[:-6]+".png"))
       normalResists.add_widget(Label(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0)))
-    comboResist = GridLayout(size_hint_x=.25,rows=1,cols=2)
+    protection = GridLayout(size_hint_x=.25,rows=1,cols=2)
 
-    comboResist.add_widget(Image(source="icons/genesis.png"))
-    comboResist.add_widget(Label(text=str( self.part["comboResist"]/10. if self.part and "comboResist" in self.part  else 0)))
+    protection.add_widget(Image(source="icons/genesis.png"))
+    protection.add_widget(Label(text=str( self.part["protection"]/10. if self.part and "protection" in self.part  else 0)))
     self.add_widget(normalResists)
-    self.add_widget(comboResist)
+    self.add_widget(protection)
 
   def setPart(self, part):
     self.part = part
@@ -1348,12 +1446,12 @@ class ShipBuilder(GridLayout):
     self.partDisplay.add_widget(rightColumn)
 
 
-    self.shipDisplay = StatDisplayGrid(cols = 2, rows = 3)
-    self.shipDisplay.add_widget(BarResourceDisplay(row_default_height = 20, row_force_default = True, size_hint_x = .5))
-    self.shipDisplay.add_widget(ResistsGrid(row_default_height = 40, row_force_default = True))
-    self.shipDisplay.add_widget(PartNameList(row_default_height = 20, row_force_default = True))
-    self.shipDisplay.add_widget(StatsDisplay(row_default_height = 20, row_force_default = True, spacing = 2, padding = 5))
-    self.shipDisplay.add_widget(Widget(size_hint_y = 2))
+    self.shipDisplay = ShipDisplay()
+    # self.shipDisplay.add_widget(BarResourceDisplay(row_default_height = 20, row_force_default = True, size_hint_x = .5))
+    # self.shipDisplay.add_widget(ResistsGrid(row_default_height = 40, row_force_default = True))
+    # self.shipDisplay.add_widget(PartNameList(row_default_height = 20, row_force_default = True))
+    # self.shipDisplay.add_widget(StatsDisplay(row_default_height = 20, row_force_default = True, spacing = 2, padding = 5))
+    # self.shipDisplay.add_widget(Widget(size_hint_y = 2))
 
     self.topHalf = GridLayout(pos_hint = {'top':1, 'x':1}, size_hint = (1,.45), rows = 1, cols = 2)
     self.bottomHalf = GridLayout(pos_hint = {'top':.45, 'x':1}, size_hint = (1,.5), rows = 1, cols = 1)
@@ -1410,5 +1508,12 @@ class ShipBuilderApp(App):
   def on_stop(self):
     self.shipBuilder.shipPicker.saveShips()
 
-# if __name__ == '__main__':
-#   ShipBuilderApp().run()
+if __name__ == '__main__':
+  ShipBuilderApp().run()
+
+# with open("ships.GODBUILDER",'r') as f:
+#   lines = f.read().splitlines()
+#   ships = [ Gunship.deserialize(rawShip) for rawShip in lines[1:] ]
+# x = ships[0]
+# x.updateNumericValues()
+# x.updateSubPartValues()
