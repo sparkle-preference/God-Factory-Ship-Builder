@@ -28,6 +28,9 @@ from kivy.uix.label import Label
 from kivy.uix.tabbedpanel import TabbedPanel, TabbedPanelHeader, StripLayout, TabbedPanelStrip, TabbedPanelContent, TabbedPanelHeader
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.anchorlayout import AnchorLayout
+from kivy.uix.stacklayout import StackLayout
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
 from kivy.uix.popup import Popup
@@ -43,8 +46,6 @@ from kivy.metrics import dp
 from kivy.graphics import Color,Rectangle,Line
 from kivy.graphics.instructions import Callback
 from kivy.uix.textinput import TextInput
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.stacklayout import StackLayout
 
 
 if True: # constant defs
@@ -342,13 +343,14 @@ class PartMark(dict):
 
 
 class Trait:
-  triggerTypes = {'All Green', 'Passive', 'Contained', 'Warrior', 'Drift', 'Attacker', 'Savior', 'Response', 'Harvester', 'Vengeance', 'Velocity', 'Relentless', 'Weapon Mod', 'Sentinel', 'Defender', 'Red Alert'}
+  triggerTypes = {'All Green', 'Passive', 'Contained', 'Warrior', 'Drift', 'Attacker', 'Savior', 'Response', 'Harvester', 'Vengeance', 'Velocity', 'Relentless', 'Sentinel', 'Defender', 'Red Alert'}
   def __init__(self, nameAndId, desc, effects):
     self.rawNameAndId = nameAndId
     self.rawEffects = effects
     self.id = mkInt(nameAndId[0])
     self.descStr = re.sub("Trait_Prop[a-zA-Z_]*",traitPropTrans, re.sub("\{([0-9])_([0-9])\}",lambda m: effects[int(m.group(1))-1][int(m.group(2))],desc).replace('\\n','\n'))
     self.displayStr = triggerTrans(nameAndId[1])
+    self.statMods = getStatMods(self.displayStr,effects)
 
 # Ok so i didn't feel like scanning memory for these strings and getting the localized versions. Instead we do this bullshit. You're welcome, everyone!
 miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
@@ -366,6 +368,40 @@ def traitPropTrans(traitProp):
     return camelToReadable(traitProp[8:])
   else:
     return traitProp.replace("_"," ")
+
+
+def changedStats(rawEffect):
+  traitProp = [x  for x in rawEffect if "Trait_Prop_" in x][0][11:]
+  preSplit = ""
+  if traitProp in miscTraitPropTrans:
+    preSplit = miscTraitPropTrans[traitProp]
+  else:
+    preSplit = traitProp.replace("_"," ")
+  return [ stat[0].lower() + "".join([ c for c in stat[1:] if c != " " ]) for stat in re.split(" *, *| *& *",preSplit)]
+
+
+
+#def normalToCamelCase(string):
+#  string[0].lower
+
+#def triggerStatMods(triggerName,effects):
+#  if triggerName[0:3] in triggerTypeTrans:
+    
+
+def getStatMods(displayStr, rawEffects):
+  statMods = {}
+  triggerType = displayStr.partition(':')[0]
+  if triggerType in Trait.triggerTypes:
+    sign = '-' if ("Deplete" in displayStr or displayStr[-1] == "-") else ''
+    for rawEffect in rawEffects:
+      for stat in changedStats(rawEffect):
+        statMods[stat] = (sign+(rawEffect[2] if stat!='reflectDamage' else rawEffect[1]), rawEffect[3])
+  return statMods
+
+def gSM(trait):
+  return getStatMods(trait.displayStr, trait.rawEffects,trait.id)
+
+
 
 def triggerTrans(triggerName):
   triggerName = triggerName[12:]
@@ -720,36 +756,69 @@ class ShipSpecial(GridLayout):
       if ship.device.part:
         cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
+      if ship.device.part:
+        cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
+        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
       if ship.addOn.part:
         cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s", halign='left'))
       weaponOverview = GridLayout(row_default_height = 20, row_force_default = True, cols = 2)
-      weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left', size_hint_x = .6))
+      weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
       weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
       dpsAppend = 1 if len(ship.DPS) == 2 else ""
       for (total,partsWithIcons) in ship.DPS:
         weaponOverview.add_widget(AlignedLabel(text="DPS" + (" ("+str(dpsAppend)+")" if dpsAppend else ""), halign='left'))
+        weaponOverview.add_widget(AlignedLabel(text = rstr(total)))
         if dpsAppend:
           dpsAppend+=1
-        dpsLine = GridLayout(rows = 1)
-        dpsLine.add_widget(Label(text = rstr(total)))
-        dpsLine.add_widget(Label(text = ' ('))
-        for (part,damageType) in partsWithIcons:
-          dpsLine.add_widget(Label(text = rstr(part)))
-          dpsLine.add_widget(DamageTypeIcon(damageType))
-        dpsLine.add_widget(Label(text = ')'))
-        weaponOverview.add_widget(dpsLine)
+
+        # dpsLine = GridLayout(rows = 1, size_hint_x = .7)
+        # dpsLine.add_widget(Label(text = rstr(total)))
+        # dpsLine.add_widget(Label(text = ' ('))
+        # for (part,damageType) in partsWithIcons:
+        #   dpsLine.add_widget(Label(text = rstr(part)))
+        #   dpsLine.add_widget(DamageTypeIcon(damageType))
+        # dpsLine.add_widget(Label(text = ')'))
+        # weaponOverview.add_widget(dpsLine)
+
       weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
-      dplLine = GridLayout(rows = 1)
-      dplLine.add_widget(AlignedLabel(ship.damagePerLoad[0]))
-        for (part,wName,damageType) in partsWithIcons:
-          dpsLine.add_widget(Label(text = rstr(part)))
-          dpsLine.add_widget(DamageTypeIcon(damageType))
-        self.add_widget(Widget(size_hint_x))
+      weaponOverview.add_widget(AlignedLabel(text=rstr(ship.damagePerLoad[0])))
+
+      # dplLine = GridLayout(rows = 1, size_hint_x = .7)
+      # for (part,damageType) in ship.damagePerLoad[1]:
+      #   dplLine.add_widget(Label(text = rstr(part)))
+      #   dplLine.add_widget(DamageTypeIcon(damageType))
+      # weaponOverview.add_widget(dplLine)
+#      self.add_widget(Widget(size_hint_x=.3))
 
       self.add_widget(cooldownGrid)
       self.add_widget(weaponOverview)
-#      for weapon in 
+      validWeapons = [w for w in [ship.mainWeaponCopy, ship.wingWeapon1Copy, ship.wingWeapon2Copy] if w]
+      weaponValGrid = GridLayout(cols = 1+len(validWeapons))
+      for attrib in ["DPS","fireRate", "range", "ammo", "locking", "damagePerLoad", "ammoLifespan" ]:
+        weaponValGrid.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left'))
+        for weapon in validWeapons:
+          if not attrib in weapon:
+            weaponValGrid.add_widget(Label(text=NA))
+            continue
+          if not weapon[attrib]:
+            weaponValGrid.add_widget(Label(text=NA))
+            continue
+          if attrib == "DPS" and "weaponType" in weapon and weapon.weaponType == BEAM:
+            weaponValGrid.add_widget(Label(text=NA))
+            continue 
+          # sorry, not sorry
+          if attrib in ["DPS", "damage"] and "damageTypes" in weapon:
+            damageWithIcon = GridLayout(cols = 3, rows = 1)
+            damageWithIcon.add_widget(SaneLabel(text=rstr(weapon[attrib]),size_hint_x=None))
+            damageWithIcon.add_widget(DamageTypeIcon(weapon.damageTypes,size_hint_x=None))
+            damageWithIcon.add_widget(Widget())
+            weaponValGrid.add_widget(damageWithIcon)
+          else:
+            weaponValGrid.add_widget(Label(text=rstr(weapon[attrib])))
+
+      self.add_widget(weaponValGrid)
+
 
 
 
@@ -775,7 +844,7 @@ class StatsDisplay(GridLayout):
     self.displayAttribs = StatsDisplay.sharedDisplayAttribs
     self.extraAttribs = []
     self.overrideDisplayAttribs = overrideDisplayAttribs
-    self.cols = 2
+    self.cols = 4
     self.part = None
 
   def updateDisplay(self):
@@ -791,24 +860,22 @@ class StatsDisplay(GridLayout):
         if attrib == "DPS" and "weaponType" in part and part.weaponType == BEAM:
           continue
 
-        self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left'))
+        self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left', size_hint_x=None))
+        self.add_widget(Widget(width=5, size_hint_x=None))
         # sorry, not sorry
-        if attrib in ["DPS", "damage"]:
-          damageWithIcon = GridLayout(cols = 2, rows = 1)
-          damageWithIcon.add_widget(Label(text=rstr(part[attrib])))
-          damageWithIcon.add_widget(DamageTypeIcon(part.damageTypes))
-          self.add_widget(damageWithIcon)
+        if attrib in ["DPS", "damage"] and "damageTypes" in part:
+          self.add_widget(SmartRow([AlignedLabel(text=rstr(part[attrib]), width=0,size_hint_x=None),DamageTypeIcon(part.damageTypes, size_hint_x=None)],size_hint_x=None))
         elif attrib == "damageTypes":
-          self.add_widget(DamageTypeIcon(part[attrib]))
+          self.add_widget(DamageTypeIcon(part[attrib],size_hint_x=None))
         else:
-          self.add_widget(Label(text=rstr(part[attrib]), halign='right'))
-    self.add_widget(Widget())
-    self.add_widget(Widget())
+          self.add_widget(AlignedLabel(text=rstr(part[attrib]), halign='left', size_hint_x=None))
+        self.add_widget(Widget(size_hint_x=1))
 
   def setPart(self, part):
     self.part = part
     self.extraAttribs = StatsDisplay.extraAttribsByPart[part.type] if part and "type" in part and part.type in StatsDisplay.extraAttribsByPart else []
     self.updateDisplay()
+
 
 
 def colorMarkupTranslate(text):
@@ -842,6 +909,26 @@ class DescriptionBox(GridLayout):
   def setPart(self,part):
     self.part = part
     self.updateDisplay()
+
+class SaneLabel(Label):
+  def _callback(self,*args):
+    if self.texture:
+      self.width = self.texture.width
+
+  def __init__(self,  **kwargs):
+    super(SaneLabel, self).__init__(**kwargs)
+    self.size_hint_x = None
+    self.bind(texture_size=self._callback)
+
+class SmartRow(GridLayout):
+  def __init__(self,widgets,**kwargs):
+    super(SmartRow,self).__init__(rows=1,cols=len(widgets), **kwargs)
+    self.size_hint_x=None
+    for widget in widgets:
+      widget.bind(width=self._callback)
+      self.add_widget(widget)
+  def _callback(self,*args):
+    self.width = sum([child.width for child in self.children ])
 
 class TraitLabel(Label):
 
@@ -877,30 +964,35 @@ class TraitLabel(Label):
 class AlignedLabel(GridLayout):
   def __init__(self, halign="left", **kwargs):
     if halign not in ["left","right"]:
-      raise ValueError(align +" not left or right")
+      raise ValueError(halign +" not left or right")
     super(AlignedLabel, self).__init__(**kwargs)
     self.rows = 1
     self.cols = 2
-    labelArgs = kwargs
+    labelArgs = kwargs.copy()
     for badArg in ["pos","x","y","size","size_hint","size_hint_x","size_hint_y","pos_hint"]:
       if badArg in labelArgs:
         del labelArgs[badArg]
-    self.label = Label(halign = halign,**labelArgs)
+    self.label = SaneLabel(halign = halign,**labelArgs)
     self.spacer = Widget()
-
+    self.label.bind(width=self._callback)
     if halign == "left":
       self.add_widget(self.label)
       self.add_widget(self.spacer)
     else:
       self.add_widget(self.spacer)
       self.add_widget(self.label)
+  def _callback(self,*args):
+    if self.label.width > self.width:
+      self.width = self.label.width
+
+  #   self.bind(size=self._on_size)
   
-  def on_size(self,*args):
-    if self.width == 0:
-      return
-    labelSize = self.label.texture_size[0] / float(self.width)
-    self.label.size_hint_x = labelSize
-    self.spacer.size_hint_x = 1 - labelSize
+  # def _on_size(self,*args):
+  #   if self.width == 0:
+  #     return
+  #   labelSize = self.label.texture_size[0] 
+  #   self.label.size_hint_x = labelSize
+  #   self.spacer.x = 1 - labelSize
 
 class ColorLabel(Label):
   def redraw(self, *args):
@@ -1019,6 +1111,7 @@ class ResistsGrid(GridLayout):
     self.cols = 2
     normalResists = GridLayout(size_hint_x=.75,rows=2,cols=6)
     for dType in self.normalResistAttribs:
+#      normalResists.add_widget(SmartRow([DamageTypeIcon([dType[:-6]]),SaneLabel(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0))]))
       normalResists.add_widget(Image(source="icons/"+dType[:-6]+".png"))
       normalResists.add_widget(Label(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0)))
     protection = GridLayout(size_hint_x=.25,rows=1,cols=2)
@@ -1051,21 +1144,21 @@ class SplitIcon(Widget):
     self.canvas.add(Rectangle(texture=self.texture2,pos=(x+minDim/2,y),size=(minDim/2,minDim)))
 
 class DamageTypeIcon(GridLayout):
-
   def __init__(self, damageTypes, **kwargs):
     super(DamageTypeIcon, self).__init__(**kwargs)
+    self.size_hint_x = None
     self.rows = 1
-    self.cols = 3
-    self.add_widget(Widget(size_hint_x = .2))
+    self.cols = 1
     icons = [ Image(size_hint_y = 1, source="icons/"+dType.lower()+".png") for dType in damageTypes ]
     if len(icons) == 1:
       self.add_widget(icons[0])
     else:
       splitIcon = SplitIcon(icons[0],icons[1])
       self.add_widget(splitIcon)
+    self.bind(height=self._callback)
 
-    self.add_widget(Widget(size_hint_x = .2))
-
+  def _callback(self,*args):
+    self.width = self.children[0].width = self.children[0].height = self.height
 
 
 class PartMarkButtons(GridLayout):
