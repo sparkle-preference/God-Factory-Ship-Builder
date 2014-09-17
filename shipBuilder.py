@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-APP_VERSION = "0.0.2"
+APP_VERSION = "0.0.3"
 
 from string import ascii_uppercase
 from time import sleep
@@ -805,7 +805,7 @@ class ShipSpecial(GridLayout):
       #   cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
       #   cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
       cooldownGrid.add_widget(AlignedLabel(text="Purge", halign='left'))
-      cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.purge)+"s"+(" (" + str(ship.purgeCooldown) + " purge cooldown)" if "purgeCooldown" in ship else ""), halign='left'))
+      cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.purge)+"s"+(" (" + str(ship.purgeCooldown) + " purge cooldown)" if "purgeCooldown" in ship else ""), width=0, halign='left'))
       if ship.device.part:
         cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
@@ -1491,6 +1491,15 @@ class ShipNameInput(TextInput):
     return super(ShipNameInput, self).insert_text("".join(re.findall(self.pat,substring)), from_undo=from_undo)
 
 class ShipSelector(GridLayout):
+
+  def refreshDropdown(self):
+    self.dropdown.clear_widgets()
+    for ship in self.ships:
+      btn = Button(text= ship.name, color = raceToColorMap[ship.race], size_hint_y=None, height=20)
+      btn.ship = ship
+      btn.bind(on_release=lambda btn: self.dropdown.select(btn.ship))
+      self.dropdown.add_widget(btn)
+
   def __init__(self,onShipChange,**kwargs):
     global currentShip
     self.callback = onShipChange
@@ -1507,12 +1516,9 @@ class ShipSelector(GridLayout):
     currentShip = self.ships[int(lines[0])]
     self.cols = 4
 
+
     self.dropdown = DropDown()
-    for ship in self.ships:
-      btn = Button(text= ship.name, color = raceToColorMap[ship.race], size_hint_y=None, height=20)
-      btn.ship = ship
-      btn.bind(on_release=lambda btn: self.dropdown.select(btn.ship))
-      self.dropdown.add_widget(btn)
+    self.refreshDropdown()
     self.mainbutton = Button(text='Select a ship', size_hint=(None, 1))
     self.mainbutton.bind(on_release=self.dropdown.open)
 
@@ -1545,11 +1551,14 @@ class ShipSelector(GridLayout):
     self.deleteShipPopup.open()
 
   def doDelete(self, btn):
-    self.ships.remove(currentShip)
-    currentShip = self.ships[0]
-    self.changeShip(currentShip)
-    self.deleteShipButton.disabled = (len(self.ships) <= 1)
-    self.deleteShipPopup.dismiss()
+    global currentShip
+    if currentShip:
+      self.ships.remove(currentShip)
+      currentShip = self.ships[0]
+      self.changeShip(currentShip)
+      self.deleteShipButton.disabled = (len(self.ships) <= 1)
+      self.deleteShipPopup.dismiss()
+      self.refreshDropdown()
 
   def doNewShipPopup(self,*args):
     popupContent = GridLayout(rows = 2, cols = 1)
@@ -1589,12 +1598,14 @@ class ShipSelector(GridLayout):
       self.changeShip(currentShip)
       self.deleteShipButton.disabled = (len(self.ships) <= 1)
       self.newShipPopup.dismiss()
+      self.refreshDropdown()
 
   def doRenamePopup(self,*args):
     nameChangeTextInput = ShipNameInput(focus=True, text=currentShip.name,multiline=False)
     nameChangePopup = Popup(title="Rename Ship", content=nameChangeTextInput, auto_dismiss=False, size_hint=(.2,.2))
     nameChangePopup.open()
     nameChangeTextInput.bind(on_text_validate=self.doRename)
+
 
   def doRename(self,instance):
     newName = instance.text
@@ -1608,11 +1619,7 @@ class ShipSelector(GridLayout):
       instance.parent.parent.parent.dismiss()
       currentShip.name = newName
       self.mainbutton.text = newName
-      for btn in self.dropdown.children[0].children:
-        if btn.ship.name == oldName:
-          btn.text = newName
-          btn.ship.name = newName
-          return
+      self.refreshDropdown()
 
 
 
