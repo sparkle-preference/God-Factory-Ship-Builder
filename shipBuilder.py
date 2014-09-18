@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-APP_VERSION = "0.0.3"
+APP_VERSION = "0.0.4"
 
 from string import ascii_uppercase
 from time import sleep
@@ -33,6 +33,7 @@ from kivy.uix.stacklayout import StackLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.togglebutton import ToggleButton
+from kivy.uix.checkbox import CheckBox
 from kivy.uix.popup import Popup
 from kivy.clock import Clock
 from kivy.uix.dropdown import DropDown
@@ -82,7 +83,7 @@ if True: # constant defs
 
   partTypes=[HULL,COCKPIT,WINGS,THRUSTERS,POWER_CORE,SHIELD_GENERATOR,MAIN_COMPUTER,WEAPON_CONTROL_UNIT,DEVICE,ADD_ON,MAIN_WEAPON,WING_WEAPON]
 
-  damageTypes = [ 'Detonation', 'Overload', 'Ignition', 'Distortion', 'Decay', 'Perforation']
+  damageTypes = [ 'detonation', 'overload', 'ignition', 'distortion', 'decay', 'perforation']
 
   HUMAN = 1
   GUANTRI = 2
@@ -146,11 +147,11 @@ if True: # constant defs
       return ALPHA
     return ALPHA #The inverse of bad data is the beginning.
 
-  def mkInt(x):
-    return int(x) if re.match("^[0-9-]+$",x) else 0
+  def mkInt(x,default=0):
+    return int(x) if re.match("^[0-9-]+$",x) else default
 
-  def mkFlt(x):
-    return float(x) if re.match("^[-.0-9]+$",x) else 0
+  def mkFlt(x,default=0.0):
+    return float(x) if re.match("^[-.0-9]+$",x) else default
 
   def rstr(x):
     return str(round(x,2)) if x.__class__ == float else str(x)
@@ -338,87 +339,82 @@ class PartMark(dict):
         self[ao]["ammoLifespan"] = rstr(numMiniShots*5) + "s"
         self[ao]["fireRate"] = "1 shot / 5s"
 
-
-
-
-
 class Trait:
   triggerTypes = {'All Green', 'Passive', 'Contained', 'Warrior', 'Drift', 'Attacker', 'Savior', 'Response', 'Harvester', 'Vengeance', 'Velocity', 'Relentless', 'Sentinel', 'Defender', 'Red Alert'}
+  # Strings for getting trait names and descriptions. I didn't feel like scanning memory for these strings and getting the localized versions. Instead we do this bullshit. You're welcome, everyone!
+  miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
+  triggerTypeTrans = {'Cnt':'Contained','Pas':'Passive', 'Dft': 'Drift', 'Rel': 'Relentless', 'Ven': 'Vengeance', 'Har': 'Harvester', 'Vel': 'Velocity', 'Red': 'Red Alert', 'War': 'Warrior', 'Rsp': 'Response', 'Att': 'Attacker', 'Def': 'Defender','All': 'All Green','Sen': 'Sentinel','Sav': 'Savior'}
+  firstWordTrans = {'Loc' : "Locking Speed",'Amp' : "Amplify",'Mob' : "Mobility",'Cld' : "Ability Cooldown",'Res' : "Resistances",'Spd' : "Speed",'Eng' : "Engines",'Nrg' : "Restore Energy",'ER'  : "Energy Regen",'Trn' : "Transmission",'Tgt' : "Targeting",'Sys' : "Systems",'Sur' : "Survival",'Rng' : "Targeting Range",'Area': "Targeting Area",'Hnd' : "Handling",'Amp' : "Amplify",'Dep' : "Deplete",'Rst' : "Restore",'Rft' : "Reflect",'Pur' : "Purge Cooldown",'Coo' : "Cooling"}
+  restWordTrans = {'Dec' : "Decay",'Shd' : "Shield",'Nrg' : "Energy",'Aur' : "Aura",'Aura': "Aura",'Dmg' : "Damage",'Ovr' : "Overload",'Bub' : "Bubble"}
+  debuffStrTrans = {"Nrg_Lk": "Energy Leak","Sta": "Stall","Shd_Bur": "Shield Burst","Vul": "Vulnerability","Shd_Lk": "Shield Leak","Amm_Brn": "Ammo Burn","Dys": "Dysfunction","Unb": "Unbalanced","Slo": "Slow","Mul": "Multiple","Rad_Jam": "Radar Jam"}
+  miscNameMap = {'Special': "Special",'Jnt_Ass': "Joint Assault",'Sca_Sht': "Scattered Shots",'Chn_Att': "Chain Attack",'Sph': "Siphon Shield",'Freefall_A': "Resitances-",'Freefall_O': "Handling-",'TB_60': "Area Blast 60"}
+
   def __init__(self, nameAndId, desc, effects):
     self.rawNameAndId = nameAndId
     self.rawEffects = effects
     self.id = mkInt(nameAndId[0])
-    self.descStr = re.sub("Trait_Prop[a-zA-Z_]*",traitPropTrans, re.sub("\{([0-9])_([0-9])\}",lambda m: effects[int(m.group(1))-1][int(m.group(2))],desc).replace('\\n','\n'))
-    self.displayStr = triggerTrans(nameAndId[1])
-    self.statMods = getStatMods(self.displayStr,effects)
+    self.descStr = re.sub("Trait_Prop[a-zA-Z_]*",self.traitPropTrans, re.sub("\{([0-9])_([0-9])\}",lambda m: effects[int(m.group(1))-1][int(m.group(2))],desc).replace('\\n','\n'))
+    self.displayStr = self.triggerTrans(nameAndId[1])
+    self.calcStatMods()
+    self.isActive = self.triggerType in ['Passive'] 
 
-# Ok so i didn't feel like scanning memory for these strings and getting the localized versions. Instead we do this bullshit. You're welcome, everyone!
-miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
-triggerTypeTrans = {'Cnt':'Contained','Pas':'Passive', 'Dft': 'Drift', 'Rel': 'Relentless', 'Ven': 'Vengeance', 'Har': 'Harvester', 'Vel': 'Velocity', 'Red': 'Red Alert', 'War': 'Warrior', 'Rsp': 'Response', 'Att': 'Attacker', 'Def': 'Defender','All': 'All Green','Sen': 'Sentinel','Sav': 'Savior'}
-firstWordTrans = {'Loc' : "Locking Speed",'Amp' : "Amplify",'Mob' : "Mobility",'Cld' : "Ability Cooldown",'Res' : "Resistances",'Spd' : "Speed",'Eng' : "Engines",'Nrg' : "Restore Energy",'ER'  : "Energy Regen",'Trn' : "Transmission",'Tgt' : "Targeting",'Sys' : "Systems",'Sur' : "Survival",'Rng' : "Targeting Range",'Area': "Targeting Area",'Hnd' : "Handling",'Amp' : "Amplify",'Dep' : "Deplete",'Rst' : "Restore",'Rft' : "Reflect",'Pur' : "Purge Cooldown",'Coo' : "Cooling"}
-restWordTrans = {'Dec' : "Decay",'Shd' : "Shield",'Nrg' : "Energy",'Aur' : "Aura",'Aura': "Aura",'Dmg' : "Damage",'Ovr' : "Overload",'Bub' : "Bubble"}
-debuffStrTrans = {"Nrg_Lk": "Energy Leak","Sta": "Stall","Shd_Bur": "Shield Burst","Vul": "Vulnerability","Shd_Lk": "Shield Leak","Amm_Brn": "Ammo Burn","Dys": "Dysfunction","Unb": "Unbalanced","Slo": "Slow","Mul": "Multiple","Rad_Jam": "Radar Jam"}
-miscNameMap = {'Special': "Special",'Jnt_Ass': "Joint Assault",'Sca_Sht': "Scattered Shots",'Chn_Att': "Chain Attack",'Sph': "Siphon Shield",'Freefall_A': "Resitances-",'Freefall_O': "Handling-",'TB_60': "Area Blast 60"}
+  def traitPropTrans(self,traitProp):
+    traitProp = traitProp.group(0)[11:]
+    if traitProp in Trait.miscTraitPropTrans:
+      return Trait.miscTraitPropTrans[traitProp]
+    elif "Wpn_Mod" in traitProp:
+      return camelToReadable(traitProp[8:])
+    else:
+      return traitProp.replace("_"," ")
 
-def traitPropTrans(traitProp):
-  traitProp = traitProp.group(0)[11:]
-  if traitProp in miscTraitPropTrans:
-    return miscTraitPropTrans[traitProp]
-  elif "Wpn_Mod" in traitProp:
-    return camelToReadable(traitProp[8:])
-  else:
-    return traitProp.replace("_"," ")
+  def changedStats(self,rawEffect):
+    traitProp = [x  for x in rawEffect if "Trait_Prop_" in x][0][11:]
+    preSplit = ""
+    if traitProp in Trait.miscTraitPropTrans:
+      preSplit = Trait.miscTraitPropTrans[traitProp]
+    else:
+      preSplit = traitProp.replace("_"," ")
+    return [ stat[0].lower() + "".join([ c for c in stat[1:] if c != " " ]) for stat in re.split(" *, *| *& *",preSplit)]
 
+  def calcStatMods(self):
+    self.statMods = {}
+    self.triggerType = self.displayStr.partition(':')[0]
+    if self.triggerType in Trait.triggerTypes:
+      sign = '-' if ("Deplete" in self.displayStr or self.displayStr[-1] == "-") else ''
+      for rawEffect in self.rawEffects:
+        for stat in self.changedStats(rawEffect):
+          if "Damage" == stat[-6:]:
+            stat = stat[:-6]
+          if stat in ["energy", "shield"]:
+            stat+="Restore"
 
-def changedStats(rawEffect):
-  traitProp = [x  for x in rawEffect if "Trait_Prop_" in x][0][11:]
-  preSplit = ""
-  if traitProp in miscTraitPropTrans:
-    preSplit = miscTraitPropTrans[traitProp]
-  else:
-    preSplit = traitProp.replace("_"," ")
-  return [ stat[0].lower() + "".join([ c for c in stat[1:] if c != " " ]) for stat in re.split(" *, *| *& *",preSplit)]
+          val = sign+(rawEffect[2] if stat!='reflect' else rawEffect[1])
+          valPair = (mkFlt(val[:-1])/100. if val and val[-1]=="%" else mkFlt(val), mkFlt(rawEffect[3]))
+          if stat == "allResistances":
+            for dType in damageTypes:
+              self.statMods[dType+"Resist"] = valPair
+          else:
+            self.statMods[stat] = valPair
+    else:
+      self.triggerType = ""
 
+  def triggerTrans(self,triggerName):
+    triggerName = triggerName[12:]
+    if triggerName[0:3] in Trait.triggerTypeTrans:
+      return Trait.triggerTypeTrans[triggerName[0:3]] + ": " + self.effectTrans(triggerName[4:])
+    elif triggerName[0:3] == 'Wpn' and triggerName[4:] in Trait.debuffStrTrans :
+      return "Weapon Mod: " + Trait.debuffStrTrans[triggerName[4:]]
+    elif triggerName[0:2] == 'AB':
+      return "Area Blast "+triggerName[3:]
+    elif triggerName in Trait.miscNameMap:
+      return Trait.miscNameMap[triggerName]
+    else:
+      print "Warning: Could not decode trigger name '" + triggerName +"'. Returned 'Special' instead."
+      return "Special"
 
-
-#def normalToCamelCase(string):
-#  string[0].lower
-
-#def triggerStatMods(triggerName,effects):
-#  if triggerName[0:3] in triggerTypeTrans:
-    
-
-def getStatMods(displayStr, rawEffects):
-  statMods = {}
-  triggerType = displayStr.partition(':')[0]
-  if triggerType in Trait.triggerTypes:
-    sign = '-' if ("Deplete" in displayStr or displayStr[-1] == "-") else ''
-    for rawEffect in rawEffects:
-      for stat in changedStats(rawEffect):
-        statMods[stat] = (sign+(rawEffect[2] if stat!='reflectDamage' else rawEffect[1]), rawEffect[3])
-  return statMods
-
-def gSM(trait):
-  return getStatMods(trait.displayStr, trait.rawEffects,trait.id)
-
-
-
-def triggerTrans(triggerName):
-  triggerName = triggerName[12:]
-  if triggerName[0:3] in triggerTypeTrans:
-    return triggerTypeTrans[triggerName[0:3]] + ": " + effectTrans(triggerName[4:])
-  elif triggerName[0:3] == 'Wpn' and triggerName[4:] in debuffStrTrans :
-    return "Weapon Mod: " + debuffStrTrans[triggerName[4:]]
-  elif triggerName[0:2] == 'AB':
-    return "Area Blast "+triggerName[3:]
-  elif triggerName in miscNameMap:
-    return miscNameMap[triggerName]
-  else:
-    1/0 #haha what's reasonable error handling
-
-def effectTrans(effectName):
-  sign,nameParts = ('-',effectName[:-1].split('_')) if effectName[-1] == '-' else ('+',effectName.split('_'))
-  return firstWordTrans[nameParts[0]] + ( " " + " ".join([restWordTrans[part] for part in nameParts[1:]]) if nameParts[1:] else sign) 
+  def effectTrans(self,effectName):
+    sign,nameParts = ('-',effectName[:-1].split('_')) if effectName[-1] == '-' else ('+',effectName.split('_'))
+    return Trait.firstWordTrans[nameParts[0]] + ( " " + " ".join([Trait.restWordTrans[part] for part in nameParts[1:]]) if nameParts[1:] else sign) 
 
 version = ""
 
@@ -580,8 +576,12 @@ class Gunship(dict):
     self.wingAmmoMod = 1.0
     if self.numWingWeapons == 1:
       self.wingWeapon2 = Gunship.PartSlot("Wing Weapon 2", WING_WEAPON, None)
+
+    self.traits =  [ (trait,self[field].part.displayName) for field in Gunship.partFields if self[field].part for trait in self[field].part.traits ]
+
     for attrib in Gunship.directSummableAttribs:
-      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part])
+      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part]) + \
+                     sum([trait.statMods[attrib][0] for trait,_ in self.traits if trait.isActive and attrib in trait.statMods])
 
     if self.numWingWeapons == 2:
       self.wingAmmoMod *= .8
@@ -626,7 +626,6 @@ class Gunship(dict):
     for attrib in ["handling", "protection", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
       self[attrib] = int(self[attrib])
 
-    self.traits =  [ trait for field in Gunship.partFields if self[field].part for trait in self[field].part.traits ]
     #TODO: Check to see if stuff like ability cooldown is calculated before display rounding by the game.
     self.purge = 180 * 100.0 / self.purgeCooldown if self.purgeCooldown else INFINITY
     self.deviceCooldown = self.device.part.cooldown * 100.0 / (self.abilityCooldown if self.abilityCooldown else 100) if self.device.part else None
@@ -696,6 +695,9 @@ def walk(widget):
 
 class SmartGrid(GridLayout):
   def __init__(self,**kwargs):
+    if "rows" in kwargs and "cols" not in kwargs:
+      print "warning, rows but no cols given: picking large number of cols" 
+      cols=99
     super(SmartGrid,self).__init__(**kwargs)
     self.size_hint=(None,None)
     # self.bind(children=self._callback, parent=self._callback)
@@ -720,13 +722,13 @@ class SmartGrid(GridLayout):
     childWidth  = sum([ child.width  + self.spacing[0] for child in self.children[-1:-(cols+1):-1]] ) - self.spacing[0] + self.padding[0]+self.padding[2]
     childHeight = sum([ child.height + self.spacing[1] for child in self.children[::-cols]])          - self.spacing[1] + self.padding[1]+self.padding[3]
     # print self.size,self.pos
-    if abs(1.0-float(childWidth)/float(self.width)) > .05:
+    if abs(1.0-float(childWidth)/float(self.width)) > .01:
       self.width = childWidth
-    if abs(1.0-float(childHeight)/float(self.height)) > .05:
+    if abs(1.0-float(childHeight)/float(self.height)) > .01:
       self.height = childHeight
 #    Clock.schedule_once(lambda dt: [ w.bind(size=self._callback,pos=self._callback) for w in self.children ],0)
 
-class PartNameList(GridLayout):
+class PartNameList(SmartGrid):
   def __init__(self,**kwargs):
     super(PartNameList,self).__init__(**kwargs)
     self.rows = 14
@@ -768,7 +770,7 @@ class ShipDisplay(StatDisplayGrid):
     topLeft    = SmartGrid(rows=1,cols=2)
     topLeftLeft = SmartGrid(rows=2,cols=1)
     topLeftRight = GridLayout(rows=1,cols=2)
-    bottomLeft = GridLayout(rows=1,cols=2)
+    bottomLeft = GridLayout(rows=1,cols=2, size_hint_x = None, spacing=[5,0])
     rightColumn = GridLayout(rows=1,cols=1, size_hint_x = .3)
 
     topLeftLeft.add_widget(BarResourceDisplay(width = Window.width*.35, height=60, size_hint_x = None))
@@ -778,8 +780,9 @@ class ShipDisplay(StatDisplayGrid):
     topLeft.add_widget(topLeftLeft)
     topLeft.add_widget(topLeftRight)
 
-    bottomLeft.add_widget(PartNameList(row_default_height = 20, row_force_default = True, size_hint_x = .5))
-    bottomLeft.add_widget(ShipSpecial())
+    partNameList=PartNameList(row_default_height = 20, row_force_default = True, size_hint_x = None, padding=[5,0,5,0])
+    bottomLeft.add_widget(partNameList)
+    bottomLeft.add_widget(ShipSpecial(size_hint_x = None))
 
     leftColumn.add_widget(topLeft)
     leftColumn.add_widget(bottomLeft)
@@ -787,7 +790,9 @@ class ShipDisplay(StatDisplayGrid):
     rightColumn.add_widget(TraitList())
     self.add_widget(leftColumn)
     self.add_widget(rightColumn)
-
+    # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
+    # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
+    # partNameList.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(partNameList,color=(0,1,0,1)),.1)))
     # Clock.schedule_once(lambda dt: [ draw_border(w,color=(0,1,0,1),clear=False) for w in [leftColumn,topLeft,topLeftLeft,topLeftRight,bottomLeft,rightColumn,self]])
 class ShipSpecial(GridLayout):
   def __init__(self, **kwargs):
@@ -800,7 +805,7 @@ class ShipSpecial(GridLayout):
     if ship:
       ship.updateNumericValues()
       ship.updateSubPartValues()
-      cooldownGrid = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2)
+      cooldownGrid = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
       # if ship.device.part:
       #   cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
       #   cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
@@ -812,7 +817,7 @@ class ShipSpecial(GridLayout):
       if ship.addOn.part:
         cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
-      weaponOverview = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2)
+      weaponOverview = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
       if "ammoLifespan" in ship:
         weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
         weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
@@ -850,7 +855,7 @@ class ShipSpecial(GridLayout):
       self.add_widget(cooldownGrid)
       self.add_widget(weaponOverview)
       validWeapons = [w for w in [ship.mainWeaponCopy, ship.wingWeapon1Copy, ship.wingWeapon2Copy] if w]
-      weaponValGrid = SmartGrid(row_default_height=20,row_force_default=True, spacing=[3,0], cols = 1+len(validWeapons))
+      weaponValGrid = SmartGrid(row_default_height=20,row_force_default=True, spacing=[5,0], padding=[5,0,5,0], cols = 1+len(validWeapons))
       weaponValGrid.add_widget(AlignedLabel(text="Weapon", halign='left',  size_hint_x = None))
       for weapon in validWeapons:
         weaponValGrid.add_widget(AlignedLabel(text=weapon.displayName, halign='left',  size_hint_x = None))
@@ -867,14 +872,13 @@ class ShipSpecial(GridLayout):
             continue
           # sorry, not sorry
           if attrib in ["DPS", "damage"] and "damageTypes" in weapon:
-            weaponValGrid.add_widget(DumbRow([AlignedLabel(text=rstr(weapon[attrib]), width=0,size_hint_x=None),DamageTypeIcon(weapon.damageTypes,size=(20,20),size_hint=(None,None))],size_hint_x=None))
+            weaponValGrid.add_widget(SmartRow([AlignedLabel(text=rstr(weapon[attrib])),DamageTypeIcon(weapon.damageTypes,size=(20,20),size_hint=(None,None))],spacing=[5,0]))
           else:
             weaponValGrid.add_widget(AlignedLabel(text=rstr(weapon[attrib]), size_hint_x = None))
       self.add_widget(weaponValGrid)
       # Clock.schedule_once(lambda dt: weaponValGrid._callback(),.04)
       # Clock.schedule_once(lambda dt: self._trigger_layout(),.05)
-      weaponValGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_grid(weaponValGrid,clear=False),0)))
-      weaponValGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt:draw_border(weaponValGrid,clear=False),0)))
+      weaponValGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: drawGridAndBorder(weaponValGrid,clear=False),0)))
       cooldownGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(cooldownGrid),0)))
       # Clock.schedule_once(lambda dt: draw_border(weaponOverview),0)
 
@@ -891,20 +895,34 @@ class TraitList(SmartGrid):
 
   def __init__(self, **kwargs):
     super(TraitList, self).__init__(**kwargs)
-    self.cols=1
+    self.cols = 1
+    self.rows = 2
     self.ship = None
+    self.traitLabels = GridLayout(cols=1)
+    self.add_widget(SaneLabel(text="Traits (Mouseover for details)"))
+    self.add_widget(self.traitLabels)
 
   def updateDisplay(self):
-    self.clear_widgets()
-    self.add_widget(SaneLabel(text="Traits (Mouseover for details)"))
+    [l.children[1].setVisible(False) for l in self.traitLabels.children if self.traitLabels.children]
+    self.traitLabels.clear_widgets()
+    
     if "traits" in self.ship:
-      for trait in self.ship.traits:
-        self.add_widget(TraitLabel(trait,size_hint_y = None,height=16))
+      for (trait, sourceName) in self.ship.traits:
+        cb = CheckBox(size_hint_x = None,active=trait.isActive)
+        cb.trait = trait
+        cb.bind(active=self.onCB)
+        self.traitLabels.add_widget(SmartRow([cb,TraitLabel(trait,source=sourceName,size_hint = (None,None),height=16),Widget()]))
+  def onCB(self,cb,value):
+    cb.trait.isActive = value
+    if set(cb.trait.statMods.keys()) & set(Gunship.directSummableAttribs):
+      self.ship.updateNumericValues()
+      self.ship.updateSubPartValues()
+      self.parent.parent.updateDisplay()
+      # onPartUpdate()
 
   def setPart(self, part):
     self.ship = part
     self.updateDisplay()
-
 
 class StatsDisplay(SmartGrid):
   sharedDisplayAttribs = [ "shield", "shieldRecharge", "energy", "energyRegen","speed", "boost", "handling", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange" ]
@@ -925,8 +943,7 @@ class StatsDisplay(SmartGrid):
     self.overrideDisplayAttribs = overrideDisplayAttribs
     self.cols = 2
     self.part = None
-    self.bind(pos=(lambda *args: Clock.schedule_once(lambda dt:draw_grid(self,clear=True),0)))
-    self.bind(pos=(lambda *args: Clock.schedule_once(lambda dt:draw_border(self,clear=False),0)))
+    self.bind(pos=(lambda *args: Clock.schedule_once(lambda dt:drawGridAndBorder(self,clear=True),0)))
 
   def updateDisplay(self):
 
@@ -953,7 +970,7 @@ class StatsDisplay(SmartGrid):
         self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left', size_hint_x=None))
         # sorry, not sorry
         if attrib in ["DPS", "damage"] and "damageTypes" in part:
-          self.add_widget(DumbRow([AlignedLabel(text=rstr(part[attrib]), size_hint_x=None),DamageTypeIcon(part.damageTypes,size=(20,20),size_hint=(None,None))],size_hint_x=None))
+          self.add_widget(SmartRow([AlignedLabel(text=rstr(part[attrib])),DamageTypeIcon(part.damageTypes,size=(20,20),size_hint=(None,None))],spacing=[5,0]))
         elif attrib == "damageTypes":
           self.add_widget(DamageTypeIcon(part[attrib],size_hint_x=None))
         else:
@@ -970,11 +987,13 @@ def colorMarkupTranslate(text):
 class DescriptionBox(GridLayout):
   def __init__(self,**kwargs):
     super(DescriptionBox,self).__init__(**kwargs)
+    self.padding=[5,0,5,0]
+    self.spacing=[0,10]
     self.rows = 5
     self.cols = 1
     self.part = None
-    self.nameLabel = Label(text = "", font_size = 14, bold = True, size_hint_y = None,height=16)
-    self.descLabel = Label(text = "_", markup=True, size_hint_y = None, width=300) 
+    self.nameLabel = SaneLabel(text = "", font_size = 14, bold = True, size_hint_y = None,height=16)
+    self.descLabel = SaneLabel(text = "_", markup=True, size_hint_y = None, width=300) 
     self.traitLabel1 = TraitLabel(None,size_hint_y = None,height=16)
     self.traitLabel2 = TraitLabel(None,size_hint_y = None,height=16)
     self.add_widget(self.nameLabel)
@@ -982,15 +1001,23 @@ class DescriptionBox(GridLayout):
     self.add_widget(self.traitLabel1)
     self.add_widget(self.traitLabel2)
     self.add_widget(Widget(size_hint_y = None))
+    self.bind(pos=self._callback,size=self._callback)
+    # self.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(self,color=(1,0,0,1)),.1)))
+    # self.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_grid(self,color=(1,0,0,1),clear=False),.1)))
 
-  def updateDisplay(self):
-    self.nameLabel.text = self.part.displayName if self.part and "displayName" in self.part else ""
-    self.descLabel.text_size = (self.width * .9 if self.width and self.width != 100 else 300 ,None)
+
+  def _callback(self,*args):
+    self.descLabel.text_size = (self.width * .95 if self.width and self.width != 100 else 300 ,None)
     self.descLabel.text = colorMarkupTranslate(self.part.description) if self.part and "description" in self.part else ""
     self.descLabel.texture_update()
     self.descLabel.size = self.descLabel.texture_size
-    self.traitLabel1.setTrait(self.part.traits[0] if self.part and "traits" in self.part and 0 in range(len(self.part.traits)) else None)
-    self.traitLabel2.setTrait(self.part.traits[1] if self.part and "traits" in self.part and 1 in range(len(self.part.traits)) else None)
+
+
+  def updateDisplay(self):
+    self.nameLabel.text = self.part.displayName if self.part and "displayName" in self.part else ""
+    self.traitLabel1.setTrait(self.part.traits[0] if self.part and "traits" in self.part and 0 < len(self.part.traits) else None)
+    self.traitLabel2.setTrait(self.part.traits[1] if self.part and "traits" in self.part and 1 < len(self.part.traits) else None)
+    self._callback()
 
   def setPart(self,part):
     self.part = part
@@ -998,8 +1025,8 @@ class DescriptionBox(GridLayout):
 
 class SaneLabel(Label):
   def _callback(self,*args):
-    if self.texture:
-      self.width = self.texture.width
+    if self.texture_size:
+      self.width = self.texture_size[0]
 
   def __init__(self,  **kwargs):
     super(SaneLabel, self).__init__(**kwargs)
@@ -1011,7 +1038,6 @@ class DumbRow(GridLayout):
     super(DumbRow,self).__init__(rows=1, **kwargs)
     for widget in widgets:
       self.add_widget(widget)
-
 class SmartRow(GridLayout):
   def __init__(self,widgets,**kwargs):
     super(SmartRow,self).__init__(rows=1,cols=len(widgets), **kwargs)
@@ -1022,51 +1048,68 @@ class SmartRow(GridLayout):
   def _callback(self,*args):
     self.width = sum([child.width for child in self.children ])
 
-class TraitLabel(Label):
+class TraitLabel(SaneLabel):
 
-  def __init__(self,trait,**kwargs):
-    self.trait = trait
+  def __init__(self,trait,source="",**kwargs):
     super(TraitLabel,self).__init__(**kwargs)
+    self.source = source
+    self.traitDetailTooltip = None
+    self.visible=True
+    self.popupVisible = False
     self.setTrait(trait)
-    self.visible = False
+
+  def setVisible(self,newVis):
+    self.visible=newVis
+
   def setTrait(self,trait):
     self.trait = trait
+    if self.traitDetailTooltip:
+      Window.remove_widget(self.traitDetailTooltip)
     if trait:
       self.text = trait.displayStr
+      self.traitDetailTooltip = ColorLabel(bgcolor = (.2, .2, .2), text_size = (400,None), size_hint = (None,None), markup=True,  text = ("[color=#CC00FF]Source: "+self.source+"[/color]\n" if self.source else "") + colorMarkupTranslate(self.trait.descStr))
       Window.bind(mouse_pos=self.on_mouse_move)
-      self.traitDetailTooltip = ColorLabel(bgcolor = (.2, .2, .2), text_size = (400,None), size_hint = (None,None), markup=True,  text = colorMarkupTranslate(self.trait.descStr))
     else:
       Window.unbind(mouse_pos=self.on_mouse_move)
       self.text = ""
   def on_mouse_move(self,window,pos):
+    if not self.visible:
+      if self.popupVisible:
+        window.remove_widget(toolTip)
+      return
     toolTip = self.traitDetailTooltip
-    rootWindow = self.get_root_window()
     if self.collide_point(*pos):
-      if not self.visible:
-        self.visible = True
-        toolTip.top = pos[1]
-        toolTip.right = pos[0]
+      if not self.popupVisible:
+
+        self.popupVisible = True
         toolTip.texture_update()
         toolTip.size = [ 20 + c for c in toolTip.texture_size ]
-        Clock.schedule_once(lambda dt: rootWindow.add_widget(toolTip) if rootWindow else None,0)
-    elif self.visible:
-      Clock.schedule_once(lambda dt: rootWindow.remove_widget(toolTip)if rootWindow else None,.1)
-      self.visible = toolTip in rootWindow.children if rootWindow else self.visible
+        newPos = (pos[0]-toolTip.size[0],pos[1]-toolTip.size[1] if pos[1]-toolTip.size[1]>0 else 0)
+        toolTip.pos = newPos
+        window.add_widget(toolTip)
+        # Clock.schedule_once(lambda dt: toolTip.setter("pos")(self,newPos),.1)
+        # Clock.schedule_once(lambda dt: window.add_widget(toolTip) if window else None,.1)
+    elif self.popupVisible:
+      window.remove_widget(toolTip)
+      self.popupVisible = False
+      # Clock.schedule_once(lambda dt: window.remove_widget(toolTip)if window else None,0)
+      # self.visible = toolTip in window.children if window else self.visibler
 
 class AlignedLabel(GridLayout):
-  def __init__(self, halign="left", padding=[2,0,2,0], **kwargs):
+  def __init__(self, halign="left", padding=[2,0,2,0], size_hint_x=None, **kwargs):
     if halign not in ["left","right"]:
       raise ValueError(halign +" not left or right")
     super(AlignedLabel, self).__init__(padding=padding,**kwargs)
     self.rows = 1
     self.cols = 2
+    self.size_hint_x=size_hint_x
     labelArgs = kwargs.copy()
     for badArg in ["pos","x","y","size","size_hint","size_hint_x","size_hint_y","pos_hint"]:
       if badArg in labelArgs:
         del labelArgs[badArg]
     self.label = SaneLabel(halign = halign,**labelArgs)
     self.spacer = Widget()
-    self.label.bind(width=self._callback)
+    self.label.bind(width=self._callback,texture_size=self._callback,text=self._callback)
     if halign == "left":
       self.add_widget(self.label)
       self.add_widget(self.spacer)
@@ -1074,8 +1117,8 @@ class AlignedLabel(GridLayout):
       self.add_widget(self.spacer)
       self.add_widget(self.label)
   def _callback(self,*args):
-    if self.label.width != self.width:
-      self.width = self.label.width
+    if self.label.texture_size[0] != self.width:
+      self.width = self.label.texture_size[0]
 
   #   self.bind(size=self._on_size)
   
@@ -1218,8 +1261,22 @@ class ResistsGrid(GridLayout):
 
 
 
+def getColorByAO():
+  if currentShip.race == GUANTRI:
+    if getAO() == ALPHA:
+      return (0, 1, 1, 1)
+    else:
+      return (1, .647, 0, 1)
+  else:
+      return (0, 0, 1, 1)
 
-def draw_grid(gL,color=(0, 0, 1, 1), clear = True):
+def drawGridAndBorder(gL,color=None, clear=True):
+  draw_grid(gL,color,clear)
+  draw_border(gL,color,False)
+
+def draw_grid(gL,color=None, clear = True):
+  if not color:
+    color = getColorByAO()
   x,y,top,right = gL.x,gL.y,gL.top,gL.right
   cols = gL.cols if gL.cols else (len(gL.children)-1) / gL.rows +1
   colXList = [ child.x for child in gL.children[-2:-(cols+1):-1]]
@@ -1234,7 +1291,9 @@ def draw_grid(gL,color=(0, 0, 1, 1), clear = True):
       Line(points=[x,rowY,right,rowY],width=1)
 
 
-def draw_border(widget,color=(0, 0, 1, 1), clear = True):
+def draw_border(widget,color=None, clear = True):
+  if not color:
+    color = getColorByAO()
   x,y,top,right = widget.x,widget.y,widget.top,widget.right
   if clear:
     widget.canvas.after.clear()
@@ -1727,12 +1786,13 @@ class ShipBuilder(GridLayout):
 class ShipBuilderApp(App):
   def build(self):
     self.shipBuilder = ShipBuilder(size = Window.size,padding=[2,2,2,2])
+    Clock.schedule_once(lambda dt: Window.set_title("Eiko's Ship Builder v"+APP_VERSION),0)
     return self.shipBuilder
   def on_stop(self):
     self.shipBuilder.shipPicker.saveShips()
 
-if __name__ == '__main__':
-  ShipBuilderApp().run()
+testRun=False
+
 
 # with open("ships.GODBUILDER",'r') as f:
 #   lines = f.read().splitlines()
@@ -1740,3 +1800,7 @@ if __name__ == '__main__':
 # x = ships[0]
 # x.updateNumericValues()
 # x.updateSubPartValues()
+# testRun = True
+
+if __name__ == '__main__' and not testRun:
+  ShipBuilderApp().run()
