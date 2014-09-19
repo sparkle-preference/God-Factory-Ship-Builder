@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-APP_VERSION = "0.0.4" #Don't change this if you want patching to work properly
+APP_VERSION = "0.0.5" #Don't change this if you want patching to work properly
 screenWidth,ScreenHeight=1024,786 #I'm not saying that you can't change these, I'm just saying that if you do, the window layout might break forever and leave you sobbing uncontrollably.
 
 # if True blocks denote logical separations of global level code. I use them so I can collapse them using my editor. 
@@ -1783,7 +1783,7 @@ class ShipBuilderApp(App):
 testRun=False
 
 
-testRun = True
+# testRun = True
 
 if __name__ == '__main__' and not testRun:
   ShipBuilderApp().run()
