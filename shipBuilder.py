@@ -1,55 +1,55 @@
 #!/usr/bin/env python
-APP_VERSION = "0.0.4"
+screenWidth,ScreenHeight=1024,786 #I'm not saying that you can't change these, I'm just saying that if you do, the window layout might break forever and leave you sobbing uncontrollably.
+APP_VERSION = "0.0.4" #Don't change this if you want patching to work properly
 
-from string import ascii_uppercase
-from time import sleep
-import urllib2
-import subprocess
-import os.path
-import csv
-import re
-import sqlite3
-import sys
-from distutils.version import StrictVersion
-from functools import partial
-from collections import namedtuple
-import kivy
-kivy.require('1.8.0') # replace with your current kivy version !
+# if True blocks denote logical separations of global level code. I use them so I can collapse them using my editor. 
+if True: # Imports
+  from string import ascii_uppercase
+  from time import sleep
+  import urllib2
+  import subprocess
+  import os.path
+  import csv
+  import re
+  import sqlite3
+  import sys
+  from distutils.version import StrictVersion
+  from functools import partial
+  from collections import namedtuple
+  import kivy
+  kivy.require('1.8.0') # It's funny because kivy 1.8.1 has all sorts of new features I won't get to use.
 
-from kivy.config import Config
-Config.set("graphics","height",786)
-Config.set("graphics","width",1024)
-Config.write()
-# Gotta do this here because kivy is INTERESTING
+  from kivy.config import Config
+  Config.set("graphics","width",screenWidth)
+  Config.set("graphics","height",ScreenHeight)
+  Config.write()
+  # Gotta do this here because kivy is INTERESTING
 
-from kivy.app import App
-
-from kivy.uix.label import Label
-from kivy.uix.tabbedpanel import TabbedPanel, TabbedPanelHeader, StripLayout, TabbedPanelStrip, TabbedPanelContent, TabbedPanelHeader
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.anchorlayout import AnchorLayout
-from kivy.uix.stacklayout import StackLayout
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.togglebutton import ToggleButton
-from kivy.uix.checkbox import CheckBox
-from kivy.uix.popup import Popup
-from kivy.clock import Clock
-from kivy.uix.dropdown import DropDown
-from kivy.uix.image import Image
-from kivy.uix.scatter import ScatterPlane, Scatter
-from kivy.graphics import Rotate
-from kivy.core.window import Window
-from kivy.uix.scrollview import ScrollView
-from kivy.uix.widget import Widget
-from kivy.metrics import dp
-from kivy.graphics import Color,Rectangle,Line
-from kivy.graphics.instructions import Callback
-from kivy.uix.textinput import TextInput
-
-
-if True: # constant defs
+  from kivy.app import App
+  from kivy.uix.label import Label
+  from kivy.uix.tabbedpanel import TabbedPanel, TabbedPanelHeader, StripLayout, TabbedPanelStrip, TabbedPanelContent, TabbedPanelHeader
+  from kivy.uix.floatlayout import FloatLayout
+  from kivy.uix.gridlayout import GridLayout
+  from kivy.uix.anchorlayout import AnchorLayout
+  from kivy.uix.stacklayout import StackLayout
+  from kivy.uix.boxlayout import BoxLayout
+  from kivy.uix.button import Button
+  from kivy.uix.togglebutton import ToggleButton
+  from kivy.uix.checkbox import CheckBox
+  from kivy.uix.popup import Popup
+  from kivy.clock import Clock
+  from kivy.uix.dropdown import DropDown
+  from kivy.uix.image import Image
+  from kivy.uix.scatter import ScatterPlane, Scatter
+  from kivy.graphics import Rotate
+  from kivy.core.window import Window
+  from kivy.uix.scrollview import ScrollView
+  from kivy.uix.widget import Widget
+  from kivy.metrics import dp
+  from kivy.graphics import Color,Rectangle,Line
+  from kivy.graphics.instructions import Callback
+  from kivy.uix.textinput import TextInput
+if True: # Global defs
   ALPHA = "Alpha"
   OMEGA = "Omega"
 
@@ -156,7 +156,13 @@ if True: # constant defs
   def rstr(x):
     return str(round(x,2)) if x.__class__ == float else str(x)
 
-class PartMark(dict):
+  currentShip = None
+  currentPart = None
+  onShipUpdate = None
+  onPartUpdate = None
+
+
+class PartMark(dict): # The full set of info available about a specific ship part at a given mark. Includes both alpha and omega data.  
   attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifespan","fireRate","isBuyable","locking","cooldown"]
   cooldownFinder = re.compile(""".*Cooldown\[-\]: ([0-9]*) secs""",flags=re.MULTILINE|re.DOTALL)
   def __getattr__(self, key):
@@ -337,9 +343,8 @@ class PartMark(dict):
         self[ao]["DPS"] = self[ao]["rawDamage"] / 5.0
         self[ao]["damagePerLoad"] = numMiniShots * self[ao]["rawDamage"]
         self[ao]["ammoLifespan"] = rstr(numMiniShots*5) + "s"
-        self[ao]["fireRate"] = "1 shot / 5s"
-
-class Trait:
+        self[ao]["fireRate"] = "1 shot / 5s" 
+class Trait: # The full set of info available about a trait. 
   triggerTypes = {'All Green', 'Passive', 'Contained', 'Warrior', 'Drift', 'Attacker', 'Savior', 'Response', 'Harvester', 'Vengeance', 'Velocity', 'Relentless', 'Sentinel', 'Defender', 'Red Alert'}
   # Strings for getting trait names and descriptions. I didn't feel like scanning memory for these strings and getting the localized versions. Instead we do this bullshit. You're welcome, everyone!
   miscTraitPropTrans = {'Area': "Targeting Area",'Range': "Targeting Range",'Lock_Systems': "Targeting Area, Targeting Range & Locking Speed",'Amp_Dmg': "Damage",'Cooldown': "Ability Cooldown",'Dark_Dmg': "Perforation, Decay & Distortion Damage",'Dec_Dmg': "Decay Damage",'Energy': "Energy",'Energy_Regen': "Energy Regen",'EnR_Cld': "Energy Regen & Ability Cooldown",'Handling': "Handling",'Light_Dmg': "Ignition, Overload & Detonation Damage",'Lock': "Locking Speed",'Negative': "Negative Effects",'Ovr_Dmg': "Overload Damage",'Per_Dis_Dmg': "Perforation & Distortion Damage",'Purge': "Purge Cooldown",'Resistances': "All Resistances",'Rft_Dmg': "Reflect Damage",'Shield': "Shield",'Siphon': "Siphon",'Spd_Hnd': "Speed & Handling",'Spd_Boo': "Speed & Boost",'Speed': "Speed",'Terminus': "Targeting Area, Targeting Range & Locking Speed" }
@@ -349,7 +354,14 @@ class Trait:
   debuffStrTrans = {"Nrg_Lk": "Energy Leak","Sta": "Stall","Shd_Bur": "Shield Burst","Vul": "Vulnerability","Shd_Lk": "Shield Leak","Amm_Brn": "Ammo Burn","Dys": "Dysfunction","Unb": "Unbalanced","Slo": "Slow","Mul": "Multiple","Rad_Jam": "Radar Jam"}
   miscNameMap = {'Special': "Special",'Jnt_Ass': "Joint Assault",'Sca_Sht': "Scattered Shots",'Chn_Att': "Chain Attack",'Sph': "Siphon Shield",'Freefall_A': "Resitances-",'Freefall_O': "Handling-",'TB_60': "Area Blast 60"}
 
-  def __init__(self, nameAndId, desc, effects):
+  def __init__(self):
+    pass
+
+  def predef(self, **kvargs):
+    for (key,val) in kvargs.iteritems():
+      self.__setattr__(key,val)
+
+  def init(self, nameAndId, desc, effects):
     self.rawNameAndId = nameAndId
     self.rawEffects = effects
     self.id = mkInt(nameAndId[0])
@@ -357,6 +369,7 @@ class Trait:
     self.displayStr = self.triggerTrans(nameAndId[1])
     self.calcStatMods()
     self.isActive = self.triggerType in ['Passive'] 
+    return self
 
   def traitPropTrans(self,traitProp):
     traitProp = traitProp.group(0)[11:]
@@ -383,13 +396,14 @@ class Trait:
       sign = '-' if ("Deplete" in self.displayStr or self.displayStr[-1] == "-") else ''
       for rawEffect in self.rawEffects:
         for stat in self.changedStats(rawEffect):
-          if "Damage" == stat[-6:]:
-            stat = stat[:-6]
-          if stat in ["energy", "shield"]:
-            stat+="Restore"
-
           val = sign+(rawEffect[2] if stat!='reflect' else rawEffect[1])
           valPair = (mkFlt(val[:-1])/100. if val and val[-1]=="%" else mkFlt(val), mkFlt(rawEffect[3]))
+          if "Damage" == stat[-6:]:
+            stat = stat[:-6]
+          if stat in ["damage"] + damageTypes:
+            stat += "Mult"
+          if stat in ["energy", "shield"]:
+            stat+="PerSec"
           if stat == "allResistances":
             for dType in damageTypes:
               self.statMods[dType+"Resist"] = valPair
@@ -416,130 +430,131 @@ class Trait:
     sign,nameParts = ('-',effectName[:-1].split('_')) if effectName[-1] == '-' else ('+',effectName.split('_'))
     return Trait.firstWordTrans[nameParts[0]] + ( " " + " ".join([Trait.restWordTrans[part] for part in nameParts[1:]]) if nameParts[1:] else sign) 
 
-version = ""
 
-try:
-  version = open('VERSION').read()
-except:
-  print "No version file found! Will attempt to grab one online."
+if True: # Version checking and patching.
 
+  version = ""
 
-#check for a new version of the app logic
-try:
-  shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py').readlines()
-  appVersionFromRepo = re.match('APP_VERSION = "(.*)"',shipBuilder[1]).groups()[0]
+  try:
+    version = open('VERSION').read()
+  except:
+    print "No version file found! Will attempt to grab one online."
 
-  if StrictVersion(appVersionFromRepo) > StrictVersion(APP_VERSION):
-    if os.path.isfile('new.shipBuilder.py'):
-      os.remove('new.shipBuilder.py')
-    with open('new.shipBuilder.py','w') as f:
-      f.write(''.join(shipBuilder))
-except:
-  print "Failed check for new version. Application logic may be out of date. Are you connected to the internet?"
+  #check for a new version of the app logic
+  try:
+    shipBuilder = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/shipBuilder.py').readlines()
+    appVersionFromRepo = re.match('APP_VERSION = "(.*)"',shipBuilder[1]).groups()[0]
 
-if(os.path.isfile('new.shipBuilder.py')):
-  print "New version found! Restarting"
-  subprocess.call(['shipBuilder.exe'])
-  exit()
+    if StrictVersion(appVersionFromRepo) > StrictVersion(APP_VERSION):
+      if os.path.isfile('new.shipBuilder.py'):
+        os.remove('new.shipBuilder.py')
+      with open('new.shipBuilder.py','w') as f:
+        f.write(''.join(shipBuilder))
+  except:
+    print "Failed check for new version. Application logic may be out of date. Are you connected to the internet?"
 
-#check to see if there's a newer version of the data
-try:
-  newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
-  if version != newVersion:
-    version = newVersion
-    if os.path.isfile('VERSION'):
-      os.remove('VERSION')
-    with open('VERSION','w') as f:
-      f.write(version)
-    for dumpFile in ['traitStrings','traits','localization','parts']:
-      fileName = dumpFile + "."+version +".dump"
-      if os.path.isfile(fileName):
-        os.remove(fileName)
-      with open(fileName,'w') as f:
-        f.write(urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/'+fileName).read())
-except:
-  print "Error getting new version. Information may be outdated, and the program may not run at all."
+  if(os.path.isfile('new.shipBuilder.py')):
+    print "New version found! Restarting"
+    subprocess.call(['shipBuilder.exe'])
+    exit()
 
+  #check to see if there's a newer version of the data
+  try:
+    newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
+    if version != newVersion:
+      version = newVersion
+      if os.path.isfile('VERSION'):
+        os.remove('VERSION')
+      with open('VERSION','w') as f:
+        f.write(version)
+      for dumpFile in ['traitStrings','traits','localization','parts']:
+        fileName = dumpFile + "."+version +".dump"
+        if os.path.isfile(fileName):
+          os.remove(fileName)
+        with open(fileName,'w') as f:
+          f.write(urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/'+fileName).read())
+  except:
+    print "Error getting new version. Information may be outdated, and the program may not run at all."
+if True: # Convert the raw data into code objects. 
+  traitsById = {}
+  traitStrings={}
+  traitStringsDump = open('traitStrings.'+version+".dump").read()
+  for traitString in traitStringsDump.splitlines():
+    (key,desc) = re.match("([^ \t]*).*= (.*)",traitString).groups()
+    traitStrings[key]=desc
 
-traitsById = {}
-traitStrings={}
-traitStringsDump = open('traitStrings.'+version+".dump").read()
-for traitString in traitStringsDump.splitlines():
-  (key,desc) = re.match("([^ \t]*).*= (.*)",traitString).groups()
-  traitStrings[key]=desc
+  traitsDump = open('traits.'+version+'.dump').read()
+  (traitEffectValues,_,rawTraits) = traitsDump.partition('STATS_TRAITS')
+  traitEffectValuesByEffectId = {}
 
-traitsDump = open('traits.'+version+'.dump').read()
-(traitEffectValues,_,rawTraits) = traitsDump.partition('STATS_TRAITS')
-traitEffectValuesByEffectId = {}
+  for row in traitEffectValues.replace('|','\n').splitlines():
+    traitEffectValuesByEffectId[row.split(':')[0]]=row.split(':')
 
-for row in traitEffectValues.replace('|','\n').splitlines():
-  traitEffectValuesByEffectId[row.split(':')[0]]=row.split(':')
+  for row in rawTraits.replace('|','\n').splitlines():
+    splitRows=row.split(':')
+    traitsById[int(splitRows[0])] = Trait().init(splitRows,traitStrings[splitRows[2]],[traitEffectValuesByEffectId[effectId] for effectId in splitRows[3].split(';')])
 
-for row in rawTraits.replace('|','\n').splitlines():
-  splitRows=row.split(':')
-  traitsById[int(splitRows[0])] = Trait(splitRows,traitStrings[splitRows[2]],[traitEffectValuesByEffectId[effectId] for effectId in splitRows[3].split(';')])
+  partKeyToXml = {"name":"name", "name1":"name_mk1","name2":"name_mk2","name3":"name_mk3","name4":"name_mk4","desc1":"desc_mk1","desc2":"desc_mk2","desc3":"desc_mk3","desc4":"desc_mk4"}
 
-partKeyToXml = {"name":"name", "name1":"name_mk1","name2":"name_mk2","name3":"name_mk3","name4":"name_mk4","desc1":"desc_mk1","desc2":"desc_mk2","desc3":"desc_mk3","desc4":"desc_mk4"}
-
-partStrings = {}
-localizationDump = open('localization.'+version+'.dump').read()
-for parts in localizationDump.split("</part>"):
-  part = {}
-  match = re.search("<partID>([0-9]*)</partID>",parts)
-  partId = 0
-  if match:
-    partId = int(match.group(1))
-
-  for partKey,Xml in partKeyToXml.iteritems():
-    match = re.search("<"+Xml+">([^<]*)</"+Xml+">",parts)
+  partStrings = {}
+  localizationDump = open('localization.'+version+'.dump').read()
+  for parts in localizationDump.split("</part>"):
+    part = {}
+    match = re.search("<partID>([0-9]*)</partID>",parts)
+    partId = 0
     if match:
-      part[partKey]=match.group(1)
-  if partId:
-    partStrings[partId]=part
-partRows = {}
+      partId = int(match.group(1))
 
-partsDump = open('parts.'+version+'.dump').read()
-for row in partsDump.replace('|','\n').splitlines():
-  partRow = PartMark().init(row.split(':'),partStrings)
-  if partRow.id not in partRows:
-    partRows[partRow.id] = {}
-  if partRow.mark not in partRows[partRow.id]:
-    partRows[partRow.id][partRow.mark] = partRow
-  else:
-    partRows[partRow.id][partRow.mark].merge(partRow)
+    for partKey,Xml in partKeyToXml.iteritems():
+      match = re.search("<"+Xml+">([^<]*)</"+Xml+">",parts)
+      if match:
+        part[partKey]=match.group(1)
+    if partId:
+      partStrings[partId]=part
+  partRows = {}
 
-buyablePartsByTypeAndRace = {}
-for partType in partTypes:
-  buyablePartsByTypeAndRace[partType]={}
-  for race in races:
-    buyablePartsByTypeAndRace[partType][race]=[]
+  partsDump = open('parts.'+version+'.dump').read()
+  for row in partsDump.replace('|','\n').splitlines():
+    partRow = PartMark().init(row.split(':'),partStrings)
+    if partRow.id not in partRows:
+      partRows[partRow.id] = {}
+    if partRow.mark not in partRows[partRow.id]:
+      partRows[partRow.id][partRow.mark] = partRow
+    else:
+      partRows[partRow.id][partRow.mark].merge(partRow)
 
-for row in partRows.values():
-  part = row[1]
-  for race in part.possibleRaces:
-    if part.isBuyable:
-      buyablePartsByTypeAndRace[part.type][race].append(row)
+  buyablePartsByTypeAndRace = {}
+  for partType in partTypes:
+    buyablePartsByTypeAndRace[partType]={}
+    for race in races:
+      buyablePartsByTypeAndRace[partType][race]=[]
 
-def p(l):
-  for i in l:
-    print i
-def s(l):
-  r = {'0'}
-  r.remove('0')
-  for i in l:
-    r.add(i)
-  return r
-def ps(l):
-  p(s(l))
+  for row in partRows.values():
+    part = row[1]
+    for race in part.possibleRaces:
+      if part.isBuyable:
+        buyablePartsByTypeAndRace[part.type][race].append(row)
 
-print "done parsing"
+  def p(l):
+    for i in l:
+      print i
+  def s(l):
+    r = {'0'}
+    r.remove('0')
+    for i in l:
+      r.add(i)
+    return r
+  def ps(l):
+    p(s(l))
+
+  print "done parsing"
 
 class Gunship(dict):
 
   PartSlot = namedtuple('PartSlot', 'name type part')
   partFields = ["hull","cockpit","wings","thrusters","powerCore","shieldGenerator","mainComputer","weaponControlUnit","device","addOn","mainWeapon","wingWeapon1","wingWeapon2"]
   partSlotsByField = { "hull": PartSlot("Hull", HULL, None), "cockpit": PartSlot("Cockpit", COCKPIT, None), "wings": PartSlot("Wings", WINGS, None), "thrusters": PartSlot("Thrusters", THRUSTERS, None), "powerCore": PartSlot("Power Core", POWER_CORE, None), "shieldGenerator": PartSlot("Shield Generator", SHIELD_GENERATOR, None), "mainComputer": PartSlot("Main Computer", MAIN_COMPUTER, None), "weaponControlUnit": PartSlot("WCU", WEAPON_CONTROL_UNIT, None), "device": PartSlot("Device", DEVICE, None), "addOn": PartSlot("Add-on", ADD_ON, None), "mainWeapon": PartSlot("Main Weapon", MAIN_WEAPON, None), "wingWeapon1": PartSlot("Wing Weapon 1", WING_WEAPON, None), "wingWeapon2": PartSlot("Wing Weapon 2", WING_WEAPON, None) }
-  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingRange"]
+  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingRange", "reflect", "shieldPerSec", "energyPerSec", "damageMult", "perforationMult", "decayMult", "distortionMult", "ignitionMult", "overloadMult", "detonationMult"]
   def __getattr__(self, key):
     return self[key]
 
@@ -580,7 +595,7 @@ class Gunship(dict):
     self.traits =  [ (trait,self[field].part.displayName) for field in Gunship.partFields if self[field].part for trait in self[field].part.traits ]
 
     for attrib in Gunship.directSummableAttribs:
-      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part]) + \
+      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part and attrib in self[field].part]) + \
                      sum([trait.statMods[attrib][0] for trait,_ in self.traits if trait.isActive and attrib in trait.statMods])
 
     if self.numWingWeapons == 2:
@@ -639,7 +654,8 @@ class Gunship(dict):
     wingWeapons = [ww for ww in [self.wingWeapon1Copy, self.wingWeapon2Copy] if ww and ww.weaponType != MINES ] #Mines aren't really a relevant part of DPS or ammo lifespan.
     
     for weapon in [self.mainWeaponCopy, self.wingWeapon1Copy, self.wingWeapon2Copy]:
-      if weapon: 
+      if weapon:
+        weapon.rawDamage *= 1.0 + (self.damageMult if "damageMult" in self else 0) + sum([self[dType+"Mult"] / len(weapon.damageTypes) for dType in weapon.damageTypes if dType+"Mult" in self])
         weapon.rawAmmo *= self.ammoMod if weapon.type == MAIN_WEAPON else self.wingAmmoMod
         weapon.lockingTime *= 100.0/self.lockingSpeed if self.lockingSpeed else 1.0
         weapon.maximumRange *= self.targetingRange/100.0 if self.targetingRange else 1.0
@@ -685,66 +701,147 @@ class Gunship(dict):
     loadedShip.updateNumericValues()
     return loadedShip
 
-currentShip = None
-currentPart = None
-onShipUpdate = None
-onPartUpdate = None
+if True: #Kivy helper functions.
+  TwoNone = (None,None) 
+  def walk(widget):
+    return widget.children + [ grandchild for child in widget.children for grandchild in walk(child) ]
 
-def walk(widget):
-  return widget.children + [ grandchild for child in widget.children for grandchild in walk(child) ]
+  def colorMarkupTranslate(text):
+    return re.sub(r"\[([0-9a-fA-F]{6})\]",r"[color=#\1]",text).replace("[-]","[/color]").replace("\r","")
 
-class SmartGrid(GridLayout):
-  def __init__(self,**kwargs):
-    if "rows" in kwargs and "cols" not in kwargs:
-      print "warning, rows but no cols given: picking large number of cols" 
-      cols=99
-    super(SmartGrid,self).__init__(**kwargs)
-    self.size_hint=(None,None)
-    # self.bind(children=self._callback, parent=self._callback)
-    # self.bind(size=self._callback)
+  def getColorByAO():
+    if currentShip.race == GUANTRI:
+      if getAO() == ALPHA:
+        return (0, 1, 1, 1)
+      else:
+        return (1, .647, 0, 1)
+    else:
+        return (0, 0, 1, 1)
 
-  def add_widget(self,widget, index=0):
-    widget.bind(size=self._callback,pos=self._callback)
-    super(SmartGrid,self).add_widget(widget,index)
-    self._callback()
-    # Clock.schedule_once(lambda dt: self._callback(),0)
+  def drawGridAndBorder(gL,color=None, clear=True):
+    draw_grid(gL,color,clear)
+    draw_border(gL,color,False)
 
+  def draw_grid(gL,color=None, clear = True):
+    if not color:
+      color = getColorByAO()
+    x,y,top,right = gL.x,gL.y,gL.top,gL.right
+    cols = gL.cols if gL.cols else (len(gL.children)-1) / gL.rows +1
+    colXList = [ child.x for child in gL.children[-2:-(cols+1):-1]]
+    rowYList = [ child.y for child in gL.children[:(cols-1):-cols]]
+    if clear:
+      gL.canvas.after.clear()
+    with gL.canvas.after:
+      Color(*color)
+      for colX in colXList:
+        Line(points=[colX,y,colX,top],width=1)
+      for rowY in rowYList:
+        Line(points=[x,rowY,right,rowY],width=1)
 
-  def _callback(self,*args):
-#    [ w.unbind(size=self._callback,pos=self._callback) for w in self.children ]
-#    self.recently
-    # self.unbind(size=self._callback)
-    if not self.width or not self.height:
-      # print "not initialized yet"
-      #not worth
-      return
-    cols = self.cols if self.cols else (len(self.children)-1) / self.rows +1
-    childWidth  = sum([ child.width  + self.spacing[0] for child in self.children[-1:-(cols+1):-1]] ) - self.spacing[0] + self.padding[0]+self.padding[2]
-    childHeight = sum([ child.height + self.spacing[1] for child in self.children[::-cols]])          - self.spacing[1] + self.padding[1]+self.padding[3]
-    # print self.size,self.pos
-    if abs(1.0-float(childWidth)/float(self.width)) > .01:
-      self.width = childWidth
-    if abs(1.0-float(childHeight)/float(self.height)) > .01:
-      self.height = childHeight
-#    Clock.schedule_once(lambda dt: [ w.bind(size=self._callback,pos=self._callback) for w in self.children ],0)
+  def draw_border(widget,color=None, clear = True):
+    if not color:
+      color = getColorByAO()
+    x,y,top,right = widget.x,widget.y,widget.top,widget.right
+    if clear:
+      widget.canvas.after.clear()
+    with widget.canvas.after:
+      Color(*color)
+      Line(points=[x,y, right,y, right,top, x,top, x,y],width=1)
+if True: #Kivy helper classes. None of these have GoD Factory-specific logic.
+  class SaneLabel(Label):
+    def _callback(self,*args):
+      if self.texture_size:
+        self.width = self.texture_size[0]
 
-class PartNameList(SmartGrid):
-  def __init__(self,**kwargs):
-    super(PartNameList,self).__init__(**kwargs)
-    self.rows = 14
-    self.cols = 1
-    self.ship = None
+    def __init__(self,  **kwargs):
+      super(SaneLabel, self).__init__(**kwargs)
+      self.size_hint_x = None
+      self.bind(texture_size=self._callback)
 
-  def updateDisplay(self):
-    ship = self.ship
-    self.clear_widgets()
-    self.add_widget(AlignedLabel(text="Part List", color=raceToColorMap[ship.race], bold=True))
-    for partField in ship.partFields:
-      self.add_widget(AlignedLabel(text=ship[partField].part.displayName if ship[partField].part else "-"))
+  class AlignedLabel(GridLayout):
+    def __init__(self, halign="left", padding=[2,0,2,0], size_hint_x=None, **kwargs):
+      if halign not in ["left","right"]:
+        raise ValueError(halign +" not left or right")
+      super(AlignedLabel, self).__init__(padding=padding,**kwargs)
+      self.rows = 1
+      self.cols = 2
+      self.size_hint_x=size_hint_x
+      labelArgs = kwargs.copy()
+      for badArg in ["pos","x","y","size","size_hint","size_hint_x","size_hint_y","pos_hint"]:
+        if badArg in labelArgs:
+          del labelArgs[badArg]
+      self.label = SaneLabel(halign = halign,**labelArgs)
+      self.spacer = Widget()
+      self.label.bind(width=self._callback,texture_size=self._callback,text=self._callback)
+      if halign == "left":
+        self.add_widget(self.label)
+        self.add_widget(self.spacer)
+      else:
+        self.add_widget(self.spacer)
+        self.add_widget(self.label)
+    def _callback(self,*args):
+      if self.label.texture_size[0] != self.width:
+        self.width = self.label.texture_size[0]
 
-  def setPart(self,ship):
-    self.ship = ship
-    self.updateDisplay()
+  class ColorLabel(Label):
+    def redraw(self, *args):
+      self.bg_rect.size = self.size
+      self.bg_rect.pos = self.pos
+    def __init__(self, bgcolor,  **kwargs):
+      super(ColorLabel,self).__init__(**kwargs)
+      with self.canvas.before:
+        Color(*bgcolor)
+        self.bg_rect = Rectangle(pos = self.pos, size = self.size)
+      self.bind(pos=self.redraw,size=self.redraw)
+
+  class ColorBar(GridLayout):
+    def __init__(self, bgcolor, percentFull, text,  **kwargs):
+      super(ColorBar,self).__init__(**kwargs)
+      self.rows = 1
+      self.cols = 2
+      self.add_widget(ColorLabel(bgcolor, size_hint_x = percentFull ))
+      self.add_widget(Label(text = text, size_hint_x = 1 - percentFull))
+
+  class DumbRow(GridLayout):
+    def __init__(self,widgets,**kwargs):
+      super(DumbRow,self).__init__(rows=1, **kwargs)
+      for widget in widgets:
+        self.add_widget(widget)
+
+  class SmartRow(GridLayout):
+    def __init__(self,widgets,**kwargs):
+      super(SmartRow,self).__init__(rows=1,cols=len(widgets), **kwargs)
+      self.size_hint_x=None
+      for widget in widgets:
+        widget.bind(width=self._callback)
+        self.add_widget(widget)
+    def _callback(self,*args):
+      self.width = sum([child.width for child in self.children ])
+
+  class SmartGrid(GridLayout):
+    def __init__(self,**kwargs):
+      if "rows" in kwargs and "cols" not in kwargs:
+        print "warning, rows but no cols given: picking large number of cols" 
+        cols=99
+      super(SmartGrid,self).__init__(**kwargs)
+      self.size_hint=(None,None)
+
+    def add_widget(self,widget, index=0):
+      widget.bind(size=self._callback,pos=self._callback)
+      super(SmartGrid,self).add_widget(widget,index)
+      self._callback()
+
+    def _callback(self,*args):
+      if not self.width or not self.height:
+        #not worth
+        return
+      cols = self.cols if self.cols else (len(self.children)-1) / self.rows +1
+      childWidth  = sum([ child.width  + self.spacing[0] for child in self.children[-1:-(cols+1):-1]] ) - self.spacing[0] + self.padding[0]+self.padding[2]
+      childHeight = sum([ child.height + self.spacing[1] for child in self.children[::-cols]])          - self.spacing[1] + self.padding[1]+self.padding[3]
+      if abs(1.0-float(childWidth)/float(self.width)) > .01:
+        self.width = childWidth
+      if abs(1.0-float(childHeight)/float(self.height)) > .01:
+        self.height = childHeight
 
 class StatDisplayGrid(GridLayout):
 
@@ -758,171 +855,6 @@ class StatDisplayGrid(GridLayout):
   def setPart(self,part):
     self.part = part
     map((lambda child : child.setPart(part) if "setPart" in dir(child) else 0), walk(self))
-
-class ShipDisplay(StatDisplayGrid):
-
-  def __init__(self, **kwargs):
-    super(ShipDisplay,self).__init__(**kwargs)
-    self.cols = 2
-    self.rows = 1
-    
-    leftColumn = GridLayout(rows=2,cols=1,size_hint_x = .7)
-    topLeft    = SmartGrid(rows=1,cols=2)
-    topLeftLeft = SmartGrid(rows=2,cols=1)
-    topLeftRight = GridLayout(rows=1,cols=2)
-    bottomLeft = GridLayout(rows=1,cols=2, size_hint_x = None, spacing=[5,0])
-    rightColumn = GridLayout(rows=1,cols=1, size_hint_x = .3)
-
-    topLeftLeft.add_widget(BarResourceDisplay(width = Window.width*.35, height=60, size_hint_x = None))
-    topLeftLeft.add_widget(ResistsGrid(height=40, size_hint=(None,None)))
-    topLeftRight.add_widget(StatsDisplay(padding = [5,1,5,1], spacing=[5,1], row_default_height = 20, row_force_default = True,overrideDisplayAttribs=["shield","energy","speed","handling"]))
-    topLeftRight.add_widget(StatsDisplay(padding = [5,1,5,1], spacing=[5,1], row_default_height = 20, row_force_default = True,overrideDisplayAttribs=["shieldRecharge","energyRegen","boost","class"]))
-    topLeft.add_widget(topLeftLeft)
-    topLeft.add_widget(topLeftRight)
-
-    partNameList=PartNameList(row_default_height = 20, row_force_default = True, size_hint_x = None, padding=[5,0,5,0])
-    bottomLeft.add_widget(partNameList)
-    bottomLeft.add_widget(ShipSpecial(size_hint_x = None))
-
-    leftColumn.add_widget(topLeft)
-    leftColumn.add_widget(bottomLeft)
-
-    rightColumn.add_widget(TraitList())
-    self.add_widget(leftColumn)
-    self.add_widget(rightColumn)
-    # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
-    # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
-    # partNameList.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(partNameList,color=(0,1,0,1)),.1)))
-    # Clock.schedule_once(lambda dt: [ draw_border(w,color=(0,1,0,1),clear=False) for w in [leftColumn,topLeft,topLeftLeft,topLeftRight,bottomLeft,rightColumn,self]])
-class ShipSpecial(GridLayout):
-  def __init__(self, **kwargs):
-    super(ShipSpecial,self).__init__(**kwargs)
-    self.cols = 1
-
-  def updateDisplay(self):
-    self.clear_widgets()
-    ship = self.part
-    if ship:
-      ship.updateNumericValues()
-      ship.updateSubPartValues()
-      cooldownGrid = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
-      # if ship.device.part:
-      #   cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
-      #   cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
-      cooldownGrid.add_widget(AlignedLabel(text="Purge", halign='left'))
-      cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.purge)+"s"+(" (" + str(ship.purgeCooldown) + " purge cooldown)" if "purgeCooldown" in ship else ""), width=0, halign='left'))
-      if ship.device.part:
-        cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
-        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
-      if ship.addOn.part:
-        cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
-        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
-      weaponOverview = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
-      if "ammoLifespan" in ship:
-        weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
-        weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
-      if "DPS" in ship:
-        dpsAppend = 1 if len(ship.DPS) == 2 else ""
-        for (total,partsWithIcons) in ship.DPS:
-          weaponOverview.add_widget(AlignedLabel(text="DPS" + (" (Main + Wing "+str(dpsAppend)+")" if dpsAppend else ""), halign='left'))
-          # weaponOverview.add_widget(AlignedLabel(text = rstr(total)))
-          if dpsAppend:
-            dpsAppend+=1
-
-          stack = []
-          stack.append(SaneLabel(text = rstr(total)))
-          stack.append(SaneLabel(text = ' ('))
-          for (part,damageType) in partsWithIcons:
-            stack.append(SaneLabel(text = rstr(part)))
-            stack.append(DamageTypeIcon(damageType))
-            stack.append(SaneLabel(text = '+'))
-          stack.pop()
-          stack.append(SaneLabel(text = ')'))
-          dpsLine = GridLayout(rows = 1, size_hint_x = .7)
-          [ dpsLine.add_widget(w) for w in stack ]
-          weaponOverview.add_widget(dpsLine)
-      if "damagePerLoad" in ship:
-        weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
-        weaponOverview.add_widget(AlignedLabel(text=rstr(ship.damagePerLoad[0])))
-
-      # dplLine = GridLayout(rows = 1, size_hint_x = .7)
-      # for (part,damageType) in ship.damagePerLoad[1]:
-      #   dplLine.add_widget(Label(text = rstr(part)))
-      #   dplLine.add_widget(DamageTypeIcon(damageType))
-      # weaponOverview.add_widget(dplLine)
-#      self.add_widget(Widget(size_hint_x=.3))
-
-      self.add_widget(cooldownGrid)
-      self.add_widget(weaponOverview)
-      validWeapons = [w for w in [ship.mainWeaponCopy, ship.wingWeapon1Copy, ship.wingWeapon2Copy] if w]
-      weaponValGrid = SmartGrid(row_default_height=20,row_force_default=True, spacing=[5,0], padding=[5,0,5,0], cols = 1+len(validWeapons))
-      weaponValGrid.add_widget(AlignedLabel(text="Weapon", halign='left',  size_hint_x = None))
-      for weapon in validWeapons:
-        weaponValGrid.add_widget(AlignedLabel(text=weapon.displayName, halign='left',  size_hint_x = None))
-      for attrib in ["DPS","fireRate", "range", "ammo", "locking", "damagePerLoad", "ammoLifespan" ]:
-        weaponValGrid.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left',  size_hint_x = None))
-        for weapon in validWeapons:
-          if attrib == "DPS" and "weaponType" in weapon and weapon.weaponType == BEAM:
-            attrib = "damage"
-          if not attrib in weapon:
-            weaponValGrid.add_widget(AlignedLabel(text=NA, size_hint_x = None))
-            continue
-          if not weapon[attrib]:
-            weaponValGrid.add_widget(AlignedLabel(text=NA, size_hint_x = None))
-            continue
-          # sorry, not sorry
-          if attrib in ["DPS", "damage"] and "damageTypes" in weapon:
-            weaponValGrid.add_widget(SmartRow([AlignedLabel(text=rstr(weapon[attrib])),DamageTypeIcon(weapon.damageTypes,size=(20,20),size_hint=(None,None))],spacing=[5,0]))
-          else:
-            weaponValGrid.add_widget(AlignedLabel(text=rstr(weapon[attrib]), size_hint_x = None))
-      self.add_widget(weaponValGrid)
-      # Clock.schedule_once(lambda dt: weaponValGrid._callback(),.04)
-      # Clock.schedule_once(lambda dt: self._trigger_layout(),.05)
-      weaponValGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: drawGridAndBorder(weaponValGrid,clear=False),0)))
-      cooldownGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(cooldownGrid),0)))
-      # Clock.schedule_once(lambda dt: draw_border(weaponOverview),0)
-
-      # Clock.schedule_once(lambda dt: draw_grid(self),0)
-      # Clock.schedule_once(lambda dt: draw_border(self,color=(1,0,0,1),clear=False),0)
-
-  def setPart(self, part):
-    self.part = part
-    self.updateDisplay()
-
-
-
-class TraitList(SmartGrid):
-
-  def __init__(self, **kwargs):
-    super(TraitList, self).__init__(**kwargs)
-    self.cols = 1
-    self.rows = 2
-    self.ship = None
-    self.traitLabels = GridLayout(cols=1)
-    self.add_widget(SaneLabel(text="Traits (Mouseover for details)"))
-    self.add_widget(self.traitLabels)
-
-  def updateDisplay(self):
-    [l.children[1].setVisible(False) for l in self.traitLabels.children if self.traitLabels.children]
-    self.traitLabels.clear_widgets()
-    
-    if "traits" in self.ship:
-      for (trait, sourceName) in self.ship.traits:
-        cb = CheckBox(size_hint_x = None,active=trait.isActive)
-        cb.trait = trait
-        cb.bind(active=self.onCB)
-        self.traitLabels.add_widget(SmartRow([cb,TraitLabel(trait,source=sourceName,size_hint = (None,None),height=16),Widget()]))
-  def onCB(self,cb,value):
-    cb.trait.isActive = value
-    if set(cb.trait.statMods.keys()) & set(Gunship.directSummableAttribs):
-      self.ship.updateNumericValues()
-      self.ship.updateSubPartValues()
-      self.parent.parent.updateDisplay()
-      # onPartUpdate()
-
-  def setPart(self, part):
-    self.ship = part
-    self.updateDisplay()
 
 class StatsDisplay(SmartGrid):
   sharedDisplayAttribs = [ "shield", "shieldRecharge", "energy", "energyRegen","speed", "boost", "handling", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange" ]
@@ -981,8 +913,189 @@ class StatsDisplay(SmartGrid):
     self.extraAttribs = StatsDisplay.extraAttribsByPart[part.type] if part and "type" in part and part.type in StatsDisplay.extraAttribsByPart else []
     self.updateDisplay()
 
-def colorMarkupTranslate(text):
-  return re.sub(r"\[([0-9a-fA-F]{6})\]",r"[color=#\1]",text).replace("[-]","[/color]").replace("\r","")
+if True: # Ship Display classes
+  class ShipDisplay(StatDisplayGrid):
+
+    def __init__(self, **kwargs):
+      super(ShipDisplay,self).__init__(**kwargs)
+      self.cols = 2
+      self.rows = 1
+      
+      leftColumn = GridLayout(rows=2,cols=1,size_hint_x = .7)
+      topLeft    = SmartGrid(rows=1,cols=2)
+      topLeftLeft = SmartGrid(rows=2,cols=1)
+      topLeftRight = GridLayout(rows=1,cols=2)
+      bottomLeft = GridLayout(rows=1,cols=2, size_hint_x = None, spacing=[5,0])
+      rightColumn = GridLayout(rows=1,cols=1, size_hint_x = .3)
+
+      topLeftLeft.add_widget(BarResourceDisplay(width = Window.width*.35, height=60, size_hint_x = None))
+      topLeftLeft.add_widget(ResistsGrid(height=40, size_hint=(None,None)))
+      topLeftRight.add_widget(StatsDisplay(padding = [5,1,5,1], spacing=[5,1], row_default_height = 20, row_force_default = True,overrideDisplayAttribs=["shield","energy","speed","handling"]))
+      topLeftRight.add_widget(StatsDisplay(padding = [5,1,5,1], spacing=[5,1], row_default_height = 20, row_force_default = True,overrideDisplayAttribs=["shieldRecharge","energyRegen","boost","class"]))
+      topLeft.add_widget(topLeftLeft)
+      topLeft.add_widget(topLeftRight)
+
+      partNameList=PartNameList(row_default_height = 20, row_force_default = True, size_hint_x = None, padding=[5,0,5,0])
+      bottomLeft.add_widget(partNameList)
+      bottomLeft.add_widget(ShipSpecial(size_hint_x = None))
+
+      leftColumn.add_widget(topLeft)
+      leftColumn.add_widget(bottomLeft)
+
+      rightColumn.add_widget(TraitList(size_hint_y=None))
+      # rightColumn.add_widget(Widget())
+      self.add_widget(leftColumn)
+      self.add_widget(rightColumn)
+      # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
+      # leftColumn.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(leftColumn,color=(1,0,0,1)),.1)))
+      # partNameList.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(partNameList,color=(0,1,0,1)),.1)))
+      # Clock.schedule_once(lambda dt: [ draw_border(w,color=(0,1,0,1),clear=False) for w in [leftColumn,topLeft,topLeftLeft,topLeftRight,bottomLeft,rightColumn,self]])
+  class PartNameList(SmartGrid):
+    def __init__(self,**kwargs):
+      super(PartNameList,self).__init__(**kwargs)
+      self.rows = 14
+      self.cols = 1
+      self.ship = None
+
+    def updateDisplay(self):
+      ship = self.ship
+      self.clear_widgets()
+      self.add_widget(AlignedLabel(text="Part List", color=raceToColorMap[ship.race], bold=True))
+      for partField in ship.partFields:
+        self.add_widget(AlignedLabel(text=ship[partField].part.displayName if ship[partField].part else "-"))
+
+    def setPart(self,ship):
+      self.ship = ship
+      self.updateDisplay()
+  class ShipSpecial(GridLayout):
+    def __init__(self, **kwargs):
+      super(ShipSpecial,self).__init__(**kwargs)
+      self.cols = 1
+
+    def updateDisplay(self):
+      self.clear_widgets()
+      ship = self.part
+      if ship:
+        ship.updateNumericValues()
+        ship.updateSubPartValues()
+        cooldownGrid = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
+        # if ship.device.part:
+        #   cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
+        #   cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
+        cooldownGrid.add_widget(AlignedLabel(text="Purge", halign='left'))
+        cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.purge)+"s"+(" (" + str(ship.purgeCooldown) + " purge cooldown)" if "purgeCooldown" in ship else ""), width=0, halign='left'))
+        if ship.device.part:
+          cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
+          cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
+        if ship.addOn.part:
+          cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
+          cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
+        weaponOverview = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
+        if "ammoLifespan" in ship:
+          weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
+          weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
+        if "DPS" in ship:
+          dpsAppend = 1 if len(ship.DPS) == 2 else ""
+          for (total,partsWithIcons) in ship.DPS:
+            weaponOverview.add_widget(AlignedLabel(text="DPS" + (" (Main + Wing "+str(dpsAppend)+")" if dpsAppend else ""), halign='left'))
+            # weaponOverview.add_widget(AlignedLabel(text = rstr(total)))
+            if dpsAppend:
+              dpsAppend+=1
+
+            stack = []
+            stack.append(SaneLabel(text = rstr(total)))
+            stack.append(SaneLabel(text = ' ('))
+            for (part,damageType) in partsWithIcons:
+              stack.append(SaneLabel(text = rstr(part)))
+              stack.append(DamageTypeIcon(damageType))
+              stack.append(SaneLabel(text = '+'))
+            stack.pop()
+            stack.append(SaneLabel(text = ')'))
+            dpsLine = GridLayout(rows = 1, size_hint_x = .7)
+            [ dpsLine.add_widget(w) for w in stack ]
+            weaponOverview.add_widget(dpsLine)
+        if "damagePerLoad" in ship:
+          weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
+          weaponOverview.add_widget(AlignedLabel(text=rstr(ship.damagePerLoad[0])))
+
+        # dplLine = GridLayout(rows = 1, size_hint_x = .7)
+        # for (part,damageType) in ship.damagePerLoad[1]:
+        #   dplLine.add_widget(Label(text = rstr(part)))
+        #   dplLine.add_widget(DamageTypeIcon(damageType))
+        # weaponOverview.add_widget(dplLine)
+        # self.add_widget(Widget(size_hint_x=.3))
+
+        self.add_widget(cooldownGrid)
+        self.add_widget(weaponOverview)
+        validWeapons = [w for w in [ship.mainWeaponCopy, ship.wingWeapon1Copy, ship.wingWeapon2Copy] if w]
+        weaponValGrid = SmartGrid(row_default_height=20,row_force_default=True, spacing=[5,0], padding=[5,0,5,0], cols = 1+len(validWeapons))
+        weaponValGrid.add_widget(AlignedLabel(text="Weapon", halign='left',  size_hint_x = None))
+        for weapon in validWeapons:
+          weaponValGrid.add_widget(AlignedLabel(text=weapon.displayName, halign='left',  size_hint_x = None))
+        for attrib in ["DPS","fireRate", "range", "ammo", "locking", "damagePerLoad", "ammoLifespan" ]:
+          weaponValGrid.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left',  size_hint_x = None))
+          for weapon in validWeapons:
+            if attrib == "DPS" and "weaponType" in weapon and weapon.weaponType == BEAM:
+              attrib = "damage"
+            if not attrib in weapon:
+              weaponValGrid.add_widget(AlignedLabel(text=NA, size_hint_x = None))
+              continue
+            if not weapon[attrib]:
+              weaponValGrid.add_widget(AlignedLabel(text=NA, size_hint_x = None))
+              continue
+            # sorry, not sorry
+            if attrib in ["DPS", "damage"] and "damageTypes" in weapon:
+              weaponValGrid.add_widget(SmartRow([AlignedLabel(text=rstr(weapon[attrib])),DamageTypeIcon(weapon.damageTypes,size=(20,20),size_hint=(None,None))],spacing=[5,0]))
+            else:
+              weaponValGrid.add_widget(AlignedLabel(text=rstr(weapon[attrib]), size_hint_x = None))
+        self.add_widget(weaponValGrid)
+        # Clock.schedule_once(lambda dt: weaponValGrid._callback(),.04)
+        # Clock.schedule_once(lambda dt: self._trigger_layout(),.05)
+        weaponValGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: drawGridAndBorder(weaponValGrid,clear=False),0)))
+        cooldownGrid.bind(pos=(lambda *args: Clock.schedule_once(lambda dt: draw_border(cooldownGrid),0)))
+        # Clock.schedule_once(lambda dt: draw_border(weaponOverview),0)
+
+        # Clock.schedule_once(lambda dt: draw_grid(self),0)
+        # Clock.schedule_once(lambda dt: draw_border(self,color=(1,0,0,1),clear=False),0)
+
+    def setPart(self, part):
+      self.part = part
+      self.updateDisplay()
+  class TraitList(GridLayout):
+
+    def __init__(self, **kwargs):
+      super(TraitList, self).__init__(**kwargs)
+      self.cols = 1
+      self.rows = 2
+      self.ship = None
+      self.traitLabels = SmartGrid(cols=1)
+      self.add_widget(SaneLabel(text="Traits (Mouseover for details)",size_hint_y=None,height=20))
+      self.add_widget(self.traitLabels)
+
+    def updateDisplay(self):
+      [l.children[0].setVisible(False) for l in self.traitLabels.children if self.traitLabels.children]
+      self.traitLabels.clear_widgets()
+      
+      if "traits" in self.ship:
+        for (trait, sourceName) in self.ship.traits:
+          if trait.statMods:
+            cb = CheckBox(size_hint = TwoNone, size=(20,20),active=trait.isActive)
+            cb.trait = trait
+            cb.bind(active=self.onCB)
+          else:
+            cb = Widget(size_hint = TwoNone, size=(20,20))
+          self.traitLabels.add_widget(SmartRow([cb,TraitLabel(trait,source=sourceName,size_hint = TwoNone,height=20)],size_hint_y = None,height=20))
+    def onCB(self,cb,value):
+      cb.trait.isActive = value
+      if set(cb.trait.statMods.keys()) & set(Gunship.directSummableAttribs):
+        self.ship.updateNumericValues()
+        self.ship.updateSubPartValues()
+        self.parent.parent.updateDisplay()
+        # onPartUpdate()
+
+    def setPart(self, part):
+      self.ship = part
+      self.updateDisplay()
 
 class DescriptionBox(GridLayout):
   def __init__(self,**kwargs):
@@ -1022,31 +1135,6 @@ class DescriptionBox(GridLayout):
   def setPart(self,part):
     self.part = part
     self.updateDisplay()
-
-class SaneLabel(Label):
-  def _callback(self,*args):
-    if self.texture_size:
-      self.width = self.texture_size[0]
-
-  def __init__(self,  **kwargs):
-    super(SaneLabel, self).__init__(**kwargs)
-    self.size_hint_x = None
-    self.bind(texture_size=self._callback)
-
-class DumbRow(GridLayout):
-  def __init__(self,widgets,**kwargs):
-    super(DumbRow,self).__init__(rows=1, **kwargs)
-    for widget in widgets:
-      self.add_widget(widget)
-class SmartRow(GridLayout):
-  def __init__(self,widgets,**kwargs):
-    super(SmartRow,self).__init__(rows=1,cols=len(widgets), **kwargs)
-    self.size_hint_x=None
-    for widget in widgets:
-      widget.bind(width=self._callback)
-      self.add_widget(widget)
-  def _callback(self,*args):
-    self.width = sum([child.width for child in self.children ])
 
 class TraitLabel(SaneLabel):
 
@@ -1094,59 +1182,6 @@ class TraitLabel(SaneLabel):
       self.popupVisible = False
       # Clock.schedule_once(lambda dt: window.remove_widget(toolTip)if window else None,0)
       # self.visible = toolTip in window.children if window else self.visibler
-
-class AlignedLabel(GridLayout):
-  def __init__(self, halign="left", padding=[2,0,2,0], size_hint_x=None, **kwargs):
-    if halign not in ["left","right"]:
-      raise ValueError(halign +" not left or right")
-    super(AlignedLabel, self).__init__(padding=padding,**kwargs)
-    self.rows = 1
-    self.cols = 2
-    self.size_hint_x=size_hint_x
-    labelArgs = kwargs.copy()
-    for badArg in ["pos","x","y","size","size_hint","size_hint_x","size_hint_y","pos_hint"]:
-      if badArg in labelArgs:
-        del labelArgs[badArg]
-    self.label = SaneLabel(halign = halign,**labelArgs)
-    self.spacer = Widget()
-    self.label.bind(width=self._callback,texture_size=self._callback,text=self._callback)
-    if halign == "left":
-      self.add_widget(self.label)
-      self.add_widget(self.spacer)
-    else:
-      self.add_widget(self.spacer)
-      self.add_widget(self.label)
-  def _callback(self,*args):
-    if self.label.texture_size[0] != self.width:
-      self.width = self.label.texture_size[0]
-
-  #   self.bind(size=self._on_size)
-  
-  # def _on_size(self,*args):
-  #   if self.width == 0:
-  #     return
-  #   labelSize = self.label.texture_size[0] 
-  #   self.label.size_hint_x = labelSize
-  #   self.spacer.x = 1 - labelSize
-
-class ColorLabel(Label):
-  def redraw(self, *args):
-    self.bg_rect.size = self.size
-    self.bg_rect.pos = self.pos
-  def __init__(self, bgcolor,  **kwargs):
-    super(ColorLabel,self).__init__(**kwargs)
-    with self.canvas.before:  
-      Color(*bgcolor)    
-      self.bg_rect = Rectangle(pos = self.pos, size = self.size)
-    self.bind(pos=self.redraw,size=self.redraw)
-
-class ColorBar(GridLayout):
-  def __init__(self, bgcolor, percentFull, text,  **kwargs):
-    super(ColorBar,self).__init__(**kwargs)
-    self.rows = 1
-    self.cols = 2
-    self.add_widget(ColorLabel(bgcolor, size_hint_x = percentFull ))
-    self.add_widget(Label(text = text, size_hint_x = 1 - percentFull))
 
 class ResourceBar(GridLayout):
   resourceToPartType = {"Weight": "hull", "Heat": "cockpit", "Power": "power core"}
@@ -1245,7 +1280,7 @@ class ResistsGrid(GridLayout):
     self.clear_widgets()
     normalResists = GridLayout(size_hint_x=.75,rows=2,cols=6)
     for dType in self.normalResistAttribs:
-#      normalResists.add_widget(SmartRow([DamageTypeIcon([dType[:-6]]),SaneLabel(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0))]))
+      #normalResists.add_widget(SmartRow([DamageTypeIcon([dType[:-6]]),SaneLabel(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0))]))
       normalResists.add_widget(Image(source="icons/"+dType[:-6]+".png"))
       normalResists.add_widget(Label(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0)))
     protection = GridLayout(size_hint_x=.25,rows=1,cols=2)
@@ -1258,48 +1293,6 @@ class ResistsGrid(GridLayout):
   def setPart(self, part):
     self.part = part
     self.updateDisplay()
-
-
-
-def getColorByAO():
-  if currentShip.race == GUANTRI:
-    if getAO() == ALPHA:
-      return (0, 1, 1, 1)
-    else:
-      return (1, .647, 0, 1)
-  else:
-      return (0, 0, 1, 1)
-
-def drawGridAndBorder(gL,color=None, clear=True):
-  draw_grid(gL,color,clear)
-  draw_border(gL,color,False)
-
-def draw_grid(gL,color=None, clear = True):
-  if not color:
-    color = getColorByAO()
-  x,y,top,right = gL.x,gL.y,gL.top,gL.right
-  cols = gL.cols if gL.cols else (len(gL.children)-1) / gL.rows +1
-  colXList = [ child.x for child in gL.children[-2:-(cols+1):-1]]
-  rowYList = [ child.y for child in gL.children[:(cols-1):-cols]]
-  if clear:
-    gL.canvas.after.clear()
-  with gL.canvas.after:
-    Color(*color)
-    for colX in colXList:
-      Line(points=[colX,y,colX,top],width=1)
-    for rowY in rowYList:
-      Line(points=[x,rowY,right,rowY],width=1)
-
-
-def draw_border(widget,color=None, clear = True):
-  if not color:
-    color = getColorByAO()
-  x,y,top,right = widget.x,widget.y,widget.top,widget.right
-  if clear:
-    widget.canvas.after.clear()
-  with widget.canvas.after:
-    Color(*color)
-    Line(points=[x,y, right,y, right,top, x,top, x,y],width=1)
 
 class SplitIcon(Widget):
 
@@ -1334,215 +1327,212 @@ class DamageTypeIcon(GridLayout):
   def _callback(self,*args):
     self.width = self.children[0].width = self.children[0].height = self.height
 
+if True: #Part Picker classes
+  class PartMarkButtons(GridLayout):
+    def __init__(self, field, part, parentHash, **kwargs):
+      self.field = field
+      super(PartMarkButtons, self).__init__(**kwargs)
+      self.cols = 5 if part[1].type not in ["MAIN_WEAPON","WING_WEAPON"] else 6
+      self.rows = 1 
+      self.part = part
+      self.mark = 1
+      if part[1].type in ["MAIN_WEAPON","WING_WEAPON"]: 
+        self.add_widget(DamageTypeIcon(part[1].damageTypes, size_hint_x = .1))
+      self.add_widget(AlignedLabel(text = part[1].parentName, halign = 'left', size_hint_x = .6))
 
-class PartMarkButtons(GridLayout):
-  def __init__(self, field, part, parentHash, **kwargs):
-    self.field = field
-    super(PartMarkButtons, self).__init__(**kwargs)
-    self.cols = 5 if part[1].type not in ["MAIN_WEAPON","WING_WEAPON"] else 6
-    self.rows = 1 
-    self.part = part
-    self.mark = 1
-    if part[1].type in ["MAIN_WEAPON","WING_WEAPON"]: 
-      self.add_widget(DamageTypeIcon(part[1].damageTypes, size_hint_x = .1))
-    self.add_widget(AlignedLabel(text = part[1].parentName, halign = 'left', size_hint_x = .6))
+      self.buttonsByMark = {}
+      for i in range(1,5):
+        btn = ToggleButton(text = str(i), group="markButtons"+str(parentHash), size_hint_x = .08)
+        btn.bind(on_release=self.onButtonPress)
+        self.buttonsByMark[i]=btn
+        self.add_widget(btn)
+      
 
-    self.buttonsByMark = {}
-    for i in range(1,5):
-      btn = ToggleButton(text = str(i), group="markButtons"+str(parentHash), size_hint_x = .08)
-      btn.bind(on_release=self.onButtonPress)
-      self.buttonsByMark[i]=btn
-      self.add_widget(btn)
-    
+    def onButtonPress(self, btn):
+      global currentPart
+      if(btn.state == 'down'):
+        self.mark = (int(btn.text))
+        currentPart = self.part[self.mark]
+        currentShip[self.field] = currentPart
+      else:
+        currentPart = None
+        currentShip[self.field] = currentPart
+      self.parent.parent.parent.parent.parent.tabsBySlot[self.field].updateColor()
+      onShipUpdate()
+      onPartUpdate()
+  class PartSelectScrollView(ScrollView):
 
-  def onButtonPress(self, btn):
-    global currentPart
-    if(btn.state == 'down'):
-      self.mark = (int(btn.text))
-      currentPart = self.part[self.mark]
-      currentShip[self.field] = currentPart
-    else:
-      currentPart = None
-      currentShip[self.field] = currentPart
-    self.parent.parent.parent.parent.parent.tabsBySlot[self.field].updateColor()
-    onShipUpdate()
-    onPartUpdate()
-
-class PartSelectScrollView(ScrollView):
-
-  def _start_decrease_alpha(self, *l):
-    pass
-
-
-  def __init__(self,field, parts,**kwargs):
-    super(PartSelectScrollView,self).__init__(**kwargs)
-    self.bar_width = 5
-    self.do_scroll_x = False
-    # self.scroll_type = ['bars','content']
-    # with self.canvas:
-    #   bar_alpha = 1
-
-    self.layout = GridLayout(size_hint_y=None, spacing = 1)
-    self.layout.cols = 1 
-    self.layout.padding = 10
-    self.layout.row_default_height = 20
-    self.layout.row_force_default = True
-    self.layout.bind(minimum_height=self.layout.setter('height'))
-    self.buttonsByPartId = {}
-    for part in parts:
-      btn = PartMarkButtons(field, part, self.__hash__())
-      self.buttonsByPartId[part[1].id] = btn
-      self.layout.add_widget(btn)
-
-    self.add_widget(self.layout)
-
-  def setPart(self, part):
-    pmb = self.buttonsByPartId[part.id]
-    btn = pmb.buttonsByMark[part.mark]
-    btn.state = "down"
-    pmb.onButtonPress(pmb.buttonsByMark[part.mark])
-
-class PartTypeTab(TabbedPanelHeader):
-  def __init__(self, partField,race,**kwargs):
-    super(PartTypeTab,self).__init__(**kwargs)
-    self.partField = partField
-    (displayName, partType, _) = Gunship.partSlotsByField[partField]
-
-    self.content = GridLayout(rows = 1, cols = 1)
-    self.partsList = PartSelectScrollView(partField, buyablePartsByTypeAndRace[partType][race])
-    self.content.add_widget(self.partsList)
-
-  def updateColor(self):
-    if currentShip[self.partField].part:
-      self.background_color = (0,1,0,.5)
-    else:
-      self.background_color = (1,0,0,1)
-
-  def on_release(self, *args):
-    global currentPart
-    super(PartTypeTab,self).on_release(*args)
-    self.updateColor()
-    if currentShip[self.partField].part:
-      self.partsList.setPart(currentShip[self.partField].part)
-    currentPart = currentShip[self.partField].part
-    onPartUpdate()
-
-class PartPicker(TabbedPanel):
-
-  def on_tab_height(self, *l):
-    Clock.unschedule(self._update_tab_height)
-    Clock.schedule_once(self._update_tab_height, 0)
-  def on_tab_width(self, *l):
-    self._tab_layout.width = self._tab_strip.width = self.tab_width
-    self._reposition_tabs()  
-  def _update_tab_height(self, *l):
-    if self.tab_height:
-      for tab in self.tab_list:
-          tab.size_hint_y = 1
-      tsh = self.tab_height * len(self._tab_strip.children)
-    else:
-      # tab_width = None
-      tsh = 0
-      for tab in self.tab_list:
-        if tab.size_hint_y:
-          # size_hint_x: x/.xyz
-          tab.size_hint_y = 1
-          #drop to default tab_height
-          tsh += 40
-        else:
-          # size_hint_x: None
-          tsh += tab.height
-    self._tab_strip.height = tsh
-    self._reposition_tabs()
-  def add_widget(self, widget, index=0):
-    content = self.content
-    if content is None:
-        return
-    if isinstance(widget, TabbedPanelHeader):
-      self_tabs = self._tab_strip
-      self_tabs.add_widget(widget, index)
-      widget.group = '__tab%r__' % self_tabs.uid
-      self.on_tab_height()
-    else:
-      super(PartPicker, self).add_widget(widget, index)
-  def _update_tabs(self, *l):
-    self_content = self.content
-    if not self_content:
-        return
-    # cache variables for faster access
-    tab_pos = self.tab_pos
-    tab_layout = self._tab_layout
-    tab_layout.clear_widgets()
-    scrl_v = ScrollView(size_hint=(None, 1))
-    tabs = self._tab_strip
-    tabs.rows = 99
-    parent = tabs.parent
-    if parent:
-      parent.remove_widget(tabs)
-    scrl_v.add_widget(tabs)
-    scrl_v.pos = (0, 0)
-    self_update_scrollview = self._update_scrollview
+    def _start_decrease_alpha(self, *l):
+      pass
 
 
-    # update scrlv width when tab width changes depends on tab_pos
-    if self._partial_update_scrollview is not None:
-        tabs.unbind(width=self._partial_update_scrollview)
-    self._partial_update_scrollview = partial(
-        self_update_scrollview, scrl_v)
-    tabs.bind(width=self._partial_update_scrollview)
+    def __init__(self,field, parts,**kwargs):
+      super(PartSelectScrollView,self).__init__(**kwargs)
+      self.bar_width = 5
+      self.do_scroll_x = False
+      # self.scroll_type = ['bars','content']
+      # with self.canvas:
+      #   bar_alpha = 1
 
-    # remove all widgets from the tab_strip
-    self.clear_widgets(do_super=True)
-    tab_width = self.tab_width
+      self.layout = GridLayout(size_hint_y=None, spacing = 1)
+      self.layout.cols = 1 
+      self.layout.padding = 10
+      self.layout.row_default_height = 20
+      self.layout.row_force_default = True
+      self.layout.bind(minimum_height=self.layout.setter('height'))
+      self.buttonsByPartId = {}
+      for part in parts:
+        btn = PartMarkButtons(field, part, self.__hash__())
+        self.buttonsByPartId[part[1].id] = btn
+        self.layout.add_widget(btn)
 
-    widget_list = []
-    tab_list = []
-    pos_letter = tab_pos[0]
-    # left ot right positions
-    # one row containing the tab_strip and the content
-    self.cols = 2
-    self.rows = 1
-    # tab_layout contains two blank dummy widgets for spacing
-    # "vertically" and the scatter containing scrollview
-    # containing tabs
-    tab_layout.cols = 1
-    tab_layout.rows = 3
-    tab_layout.size_hint = (None, 1)
-    tab_layout.width = tab_width
-    scrl_v.width = tab_width
-    self_update_scrollview(scrl_v)
+      self.add_widget(self.layout)
 
-    # rotate the scatter for vertical positions
-    tab_list = (scrl_v, )
+    def setPart(self, part):
+      pmb = self.buttonsByPartId[part.id]
+      btn = pmb.buttonsByMark[part.mark]
+      btn.state = "down"
+      pmb.onButtonPress(pmb.buttonsByMark[part.mark])
+  class PartTypeTab(TabbedPanelHeader):
+    def __init__(self, partField,race,**kwargs):
+      super(PartTypeTab,self).__init__(**kwargs)
+      self.partField = partField
+      (displayName, partType, _) = Gunship.partSlotsByField[partField]
 
-    widget_list = (tab_layout, self_content)
+      self.content = GridLayout(rows = 1, cols = 1)
+      self.partsList = PartSelectScrollView(partField, buyablePartsByTypeAndRace[partType][race])
+      self.content.add_widget(self.partsList)
 
-    # add widgets to tab_layout
-    add = tab_layout.add_widget
-    for widg in tab_list:
-      add(widg)
+    def updateColor(self):
+      if currentShip[self.partField].part:
+        self.background_color = (0,1,0,.5)
+      else:
+        self.background_color = (1,0,0,1)
 
-    # add widgets to self
-    add = self.add_widget
-    for widg in widget_list:
-      add(widg)
-  def __init__(self,race,**kwargs):
-    super(PartPicker,self).__init__(**kwargs)
-    self.tabsBySlot = {}
-    self.tab_width = 150
-    self.tab_height = 20
-    self._tab_layout = StripLayout(rows=13)
-    self.cols = 1
-    self._tab_strip = TabbedPanelStrip(
-                       tabbed_panel=self, rows=13,
-                       size_hint=(None, None),
-                       height=self.tab_height, width=self.tab_width)
+    def on_release(self, *args):
+      global currentPart
+      super(PartTypeTab,self).on_release(*args)
+      self.updateColor()
+      if currentShip[self.partField].part:
+        self.partsList.setPart(currentShip[self.partField].part)
+      currentPart = currentShip[self.partField].part
+      onPartUpdate()
+  class PartPicker(TabbedPanel):
 
-    self.do_default_tab = False
-    for partField in Gunship.partFields:
-      tab = PartTypeTab(partField,race,text=Gunship.partSlotsByField[partField].name)
-      self.tabsBySlot[partField] = tab
-      self.add_widget(tab)
+    def on_tab_height(self, *l):
+      Clock.unschedule(self._update_tab_height)
+      Clock.schedule_once(self._update_tab_height, 0)
+    def on_tab_width(self, *l):
+      self._tab_layout.width = self._tab_strip.width = self.tab_width
+      self._reposition_tabs()  
+    def _update_tab_height(self, *l):
+      if self.tab_height:
+        for tab in self.tab_list:
+            tab.size_hint_y = 1
+        tsh = self.tab_height * len(self._tab_strip.children)
+      else:
+        # tab_width = None
+        tsh = 0
+        for tab in self.tab_list:
+          if tab.size_hint_y:
+            # size_hint_x: x/.xyz
+            tab.size_hint_y = 1
+            #drop to default tab_height
+            tsh += 40
+          else:
+            # size_hint_x: None
+            tsh += tab.height
+      self._tab_strip.height = tsh
+      self._reposition_tabs()
+    def add_widget(self, widget, index=0):
+      content = self.content
+      if content is None:
+          return
+      if isinstance(widget, TabbedPanelHeader):
+        self_tabs = self._tab_strip
+        self_tabs.add_widget(widget, index)
+        widget.group = '__tab%r__' % self_tabs.uid
+        self.on_tab_height()
+      else:
+        super(PartPicker, self).add_widget(widget, index)
+    def _update_tabs(self, *l):
+      self_content = self.content
+      if not self_content:
+          return
+      # cache variables for faster access
+      tab_pos = self.tab_pos
+      tab_layout = self._tab_layout
+      tab_layout.clear_widgets()
+      scrl_v = ScrollView(size_hint=(None, 1))
+      tabs = self._tab_strip
+      tabs.rows = 99
+      parent = tabs.parent
+      if parent:
+        parent.remove_widget(tabs)
+      scrl_v.add_widget(tabs)
+      scrl_v.pos = (0, 0)
+      self_update_scrollview = self._update_scrollview
+
+
+      # update scrlv width when tab width changes depends on tab_pos
+      if self._partial_update_scrollview is not None:
+          tabs.unbind(width=self._partial_update_scrollview)
+      self._partial_update_scrollview = partial(
+          self_update_scrollview, scrl_v)
+      tabs.bind(width=self._partial_update_scrollview)
+
+      # remove all widgets from the tab_strip
+      self.clear_widgets(do_super=True)
+      tab_width = self.tab_width
+
+      widget_list = []
+      tab_list = []
+      pos_letter = tab_pos[0]
+      # left ot right positions
+      # one row containing the tab_strip and the content
+      self.cols = 2
+      self.rows = 1
+      # tab_layout contains two blank dummy widgets for spacing
+      # "vertically" and the scatter containing scrollview
+      # containing tabs
+      tab_layout.cols = 1
+      tab_layout.rows = 3
+      tab_layout.size_hint = (None, 1)
+      tab_layout.width = tab_width
+      scrl_v.width = tab_width
+      self_update_scrollview(scrl_v)
+
+      # rotate the scatter for vertical positions
+      tab_list = (scrl_v, )
+
+      widget_list = (tab_layout, self_content)
+
+      # add widgets to tab_layout
+      add = tab_layout.add_widget
+      for widg in tab_list:
+        add(widg)
+
+      # add widgets to self
+      add = self.add_widget
+      for widg in widget_list:
+        add(widg)
+    def __init__(self,race,**kwargs):
+      super(PartPicker,self).__init__(**kwargs)
+      self.tabsBySlot = {}
+      self.tab_width = 150
+      self.tab_height = 20
+      self._tab_layout = StripLayout(rows=13)
+      self.cols = 1
+      self._tab_strip = TabbedPanelStrip(
+                         tabbed_panel=self, rows=13,
+                         size_hint=(None, None),
+                         height=self.tab_height, width=self.tab_width)
+
+      self.do_default_tab = False
+      for partField in Gunship.partFields:
+        tab = PartTypeTab(partField,race,text=Gunship.partSlotsByField[partField].name)
+        self.tabsBySlot[partField] = tab
+        self.add_widget(tab)
 
 class ShipNameInput(TextInput):
   pat = '[A-Za-z0-9_ -]'
@@ -1695,7 +1685,6 @@ class ShipSelector(GridLayout):
     self.mainbutton.color = raceToColorMap[ship.race]
     self.callback()
 
-
 class ShipBuilder(GridLayout):
   def __init__(self,**kwargs):
     global onShipUpdate, onPartUpdate
@@ -1786,7 +1775,7 @@ class ShipBuilder(GridLayout):
 class ShipBuilderApp(App):
   def build(self):
     self.shipBuilder = ShipBuilder(size = Window.size,padding=[2,2,2,2])
-    Clock.schedule_once(lambda dt: Window.set_title("Eiko's Ship Builder v"+APP_VERSION),0)
+    Clock.schedule_once(lambda dt: Window.set_title("Eiko's Ship Builder v"+APP_VERSION + " (GoD Factory Patch "+version),0)
     return self.shipBuilder
   def on_stop(self):
     self.shipBuilder.shipPicker.saveShips()
@@ -1794,13 +1783,14 @@ class ShipBuilderApp(App):
 testRun=False
 
 
-# with open("ships.GODBUILDER",'r') as f:
-#   lines = f.read().splitlines()
-#   ships = [ Gunship.deserialize(rawShip) for rawShip in lines[1:] ]
-# x = ships[0]
-# x.updateNumericValues()
-# x.updateSubPartValues()
-# testRun = True
+testRun = True
 
 if __name__ == '__main__' and not testRun:
   ShipBuilderApp().run()
+else:
+  with open("ships.GODBUILDER",'r') as f:
+    lines = f.read().splitlines()
+    ships = [ Gunship.deserialize(rawShip) for rawShip in lines[1:] ]
+  x = ships[0]
+  x.updateNumericValues()
+  x.updateSubPartValues()
