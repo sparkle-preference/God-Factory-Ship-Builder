@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-screenWidth,ScreenHeight=1024,786 #I'm not saying that you can't change these, I'm just saying that if you do, the window layout might break forever and leave you sobbing uncontrollably.
 APP_VERSION = "0.0.4" #Don't change this if you want patching to work properly
+screenWidth,ScreenHeight=1024,786 #I'm not saying that you can't change these, I'm just saying that if you do, the window layout might break forever and leave you sobbing uncontrollably.
 
 # if True blocks denote logical separations of global level code. I use them so I can collapse them using my editor. 
 if True: # Imports
@@ -460,7 +460,7 @@ if True: # Version checking and patching.
 
   #check to see if there's a newer version of the data
   try:
-    newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read()
+    newVersion = urllib2.urlopen('https://raw.githubusercontent.com/turntekGodhead/God-Factory-Ship-Builder/master/VERSION').read().replace("\n","")
     if version != newVersion:
       version = newVersion
       if os.path.isfile('VERSION'):
