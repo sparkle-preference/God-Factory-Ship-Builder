@@ -17,6 +17,7 @@ if True: # Imports
   from functools import partial
   from collections import namedtuple
   import kivy
+  import cProfile
   kivy.require('1.8.0') # It's funny because kivy 1.8.1 has all sorts of new features I won't get to use.
 
   from kivy.config import Config
@@ -160,7 +161,6 @@ if True: # Global defs
   currentPart = None
   onShipUpdate = None
   onPartUpdate = None
-
 
 class PartMark(dict): # The full set of info available about a specific ship part at a given mark. Includes both alpha and omega data.  
   attribs = [ "id", "rawVals", "defaultRace", "type", "className", "weaponType", "rankRequired", "possibleRaces", "creditCosts", "expRequired", "prereqParts","traits", "isPrereqFor", "mark", "codeName", "alphaOmega", "damageTypes", "grade", "scoreGained", "weightCost", "weightCapacity", "powerCost", "powerCapacity", "heatCost", "heatCapacity", "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "numWingWeapons", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingArea", "targetingRange", "minimumRange", "maximumRange", "accuracy", "shotCooldown", "projectileCount", "projectileRange", "ammo", "lockingTime", "maxTargets", "damage", "markOwned", "currentExp", "parentName", "displayName", "description", "range","multiTargetMode","projectilesPerTarget","lockRequired", "targets", "rawAmmo", "rawDamage", "mystery", "additionalWonders", "DPS","damagePerLoad","ammoLifespan","fireRate","isBuyable","locking","cooldown"]
@@ -430,7 +430,6 @@ class Trait: # The full set of info available about a trait.
     sign,nameParts = ('-',effectName[:-1].split('_')) if effectName[-1] == '-' else ('+',effectName.split('_'))
     return Trait.firstWordTrans[nameParts[0]] + ( " " + " ".join([Trait.restWordTrans[part] for part in nameParts[1:]]) if nameParts[1:] else sign) 
 
-
 if True: # Version checking and patching.
 
   version = ""
@@ -598,7 +597,7 @@ class Gunship(dict):
       self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part and attrib in self[field].part]) + \
                      sum([trait.statMods[attrib][0] for trait,_ in self.traits if trait.isActive and attrib in trait.statMods])
 
-    if self.numWingWeapons == 2:
+    if self.numWingWeapons == 2 && self.wingWeapon1.part and self.wingWeapon2.part:
       self.wingAmmoMod *= .8
 
 
@@ -886,7 +885,7 @@ class StatsDisplay(SmartGrid):
         if not attrib in part:
           if self.overrideDisplayAttribs:
             self.add_widget(AlignedLabel(text=camelToReadable(attrib), halign='left', size_hint_x=None))
-            self.add_widget(AlignedLabel(text=0, halign='left', size_hint_x=None))
+            self.add_widget(AlignedLabel(text=NA, halign='left', size_hint_x=None))
           continue
         if not part[attrib]:
           if self.overrideDisplayAttribs:
@@ -926,7 +925,7 @@ if True: # Ship Display classes
       topLeftLeft = SmartGrid(rows=2,cols=1)
       topLeftRight = GridLayout(rows=1,cols=2)
       bottomLeft = GridLayout(rows=1,cols=2, size_hint_x = None, spacing=[5,0])
-      rightColumn = GridLayout(rows=1,cols=1, size_hint_x = .3)
+      rightColumn = GridLayout(rows=3,cols=1, size_hint_x = .3)
 
       topLeftLeft.add_widget(BarResourceDisplay(width = Window.width*.35, height=60, size_hint_x = None))
       topLeftLeft.add_widget(ResistsGrid(height=40, size_hint=(None,None)))
@@ -943,6 +942,8 @@ if True: # Ship Display classes
       leftColumn.add_widget(bottomLeft)
 
       rightColumn.add_widget(TraitList(size_hint_y=None))
+      rightColumn.add_widget(StatsDisplay(padding = [5,1,5,1], spacing=[5,1], row_default_height = 20, row_force_default = True,overrideDisplayAttribs=["shieldPerSec","energyPerSec","reflect"]))
+      rightColumn.add_widget(Widget())
       # rightColumn.add_widget(Widget())
       self.add_widget(leftColumn)
       self.add_widget(rightColumn)
@@ -984,16 +985,28 @@ if True: # Ship Display classes
         #   cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s", halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text="Purge", halign='left'))
         cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.purge)+"s"+(" (" + str(ship.purgeCooldown) + " purge cooldown)" if "purgeCooldown" in ship else ""), width=0, halign='left'))
+
         if ship.device.part:
           cooldownGrid.add_widget(AlignedLabel(text=ship.device.part.displayName, halign='left'))
           cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.deviceCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
+        else: 
+          cooldownGrid.add_widget(AlignedLabel(text="Select a device"))
+          cooldownGrid.add_widget(AlignedLabel(text=NA))
+
         if ship.addOn.part:
           cooldownGrid.add_widget(AlignedLabel(text=ship.addOn.part.displayName, halign='left'))
           cooldownGrid.add_widget(AlignedLabel(text=rstr(ship.addOnCooldown)+"s"+(" (" + str(ship.abilityCooldown) + " ability cooldown)" if "abilityCooldown" in ship else ""), halign='left'))
+        else: 
+          cooldownGrid.add_widget(AlignedLabel(text="Select an Add-on"))
+          cooldownGrid.add_widget(AlignedLabel(text=NA))
+
         weaponOverview = SmartGrid(row_default_height = 20, row_force_default = True, cols = 2, spacing=[5,0], padding=[5,0,5,0])
+
+        weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
         if "ammoLifespan" in ship:
-          weaponOverview.add_widget(AlignedLabel(text="Ammo Lifespans", halign='left'))
           weaponOverview.add_widget(AlignedLabel(text=ship.ammoLifespan, halign='left'))
+        else:
+          weaponOverview.add_widget(AlignedLabel(text="<Select multiple weapons>"))
         if "DPS" in ship:
           dpsAppend = 1 if len(ship.DPS) == 2 else ""
           for (total,partsWithIcons) in ship.DPS:
@@ -1014,9 +1027,16 @@ if True: # Ship Display classes
             dpsLine = GridLayout(rows = 1, size_hint_x = .7)
             [ dpsLine.add_widget(w) for w in stack ]
             weaponOverview.add_widget(dpsLine)
+        else:
+          weaponOverview.add_widget(AlignedLabel(text="DPS", halign='left'))
+          weaponOverview.add_widget(AlignedLabel(text="<Select multiple weapons>"))
+
+
+        weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
         if "damagePerLoad" in ship:
-          weaponOverview.add_widget(AlignedLabel(text="Total Damage", halign = 'left'))
           weaponOverview.add_widget(AlignedLabel(text=rstr(ship.damagePerLoad[0])))
+        else:
+          weaponOverview.add_widget(AlignedLabel(text="<Select multiple weapons>"))
 
         # dplLine = GridLayout(rows = 1, size_hint_x = .7)
         # for (part,damageType) in ship.damagePerLoad[1]:
@@ -1071,6 +1091,7 @@ if True: # Ship Display classes
       self.traitLabels = SmartGrid(cols=1)
       self.add_widget(SaneLabel(text="Traits (Mouseover for details)",size_hint_y=None,height=20))
       self.add_widget(self.traitLabels)
+      self.traitLabels.bind(height=lambda *args: self.__setattr__('height',self.traitLabels.height+20))
 
     def updateDisplay(self):
       [l.children[0].setVisible(False) for l in self.traitLabels.children if self.traitLabels.children]
@@ -1707,8 +1728,8 @@ class ShipBuilder(GridLayout):
 
     rightColumn = SmartGrid(cols = 1, rows = 4, spacing=[0,5])
     rightColumn.add_widget(ResistsGrid(row_default_height = 40, height=40, row_force_default = True, size_hint = (None,None)))
-    rightColumn.add_widget(StatsDisplay( row_default_height = 20, row_force_default = True, spacing = 2, padding = 2))
     rightColumn.add_widget(IconResourceDisplay(size_hint = (None,None), row_default_height = 20, height=20, row_force_default = True))
+    rightColumn.add_widget(StatsDisplay( row_default_height = 20, row_force_default = True, spacing = 2, padding = 2))
     rightColumn.add_widget(Widget(width=220, size_hint = (None,None)))
     self.partDisplay.add_widget(rightColumn)
 
@@ -1738,9 +1759,12 @@ class ShipBuilder(GridLayout):
     self._keyboard = None
 
   def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
+    print "button press!",
     if keycode[1] == 'q' and currentShip.race == GUANTRI:
+      print "change"
       self.alphaOmegaSwap(self.gModeBtn)
       return True
+    print "no change"
     return False
 
   def alphaOmegaSwap(self, btn):
@@ -1772,10 +1796,11 @@ class ShipBuilder(GridLayout):
 
     Clock.schedule_once((lambda dt: (pickerForRace.switch_to(pickerForRace.tab_list[-1]) and False) or pickerForRace.tab_list[-1].on_release()),1) 
 
+
 class ShipBuilderApp(App):
   def build(self):
     self.shipBuilder = ShipBuilder(size = Window.size,padding=[2,2,2,2])
-    Clock.schedule_once(lambda dt: Window.set_title("Eiko's Ship Builder v"+APP_VERSION + " (GoD Factory Patch "+version),0)
+    Clock.schedule_once(lambda dt: Window.set_title("Eiko's Ship Builder v"+APP_VERSION + " (GoD Factory Patch "+version+")"),0)
     return self.shipBuilder
   def on_stop(self):
     self.shipBuilder.shipPicker.saveShips()
@@ -1788,6 +1813,11 @@ testRun=False
 if __name__ == '__main__' and not testRun:
   ShipBuilderApp().run()
 else:
+
+  for race in races:
+    print race
+    cProfile.run('PartPicker(race = '+str(race)+')')
+
   with open("ships.GODBUILDER",'r') as f:
     lines = f.read().splitlines()
     ships = [ Gunship.deserialize(rawShip) for rawShip in lines[1:] ]
