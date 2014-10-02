@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-APP_VERSION = "0.0.5" #Don't change this if you want patching to work properly
+APP_VERSION = "0.0.6" #Don't change this if you want patching to work properly
 screenWidth,ScreenHeight=1024,786 #I'm not saying that you can't change these, I'm just saying that if you do, the window layout might break forever and leave you sobbing uncontrollably.
 
 # if True blocks denote logical separations of global level code. I use them so I can collapse them using my editor. 
@@ -85,6 +85,8 @@ if True: # Global defs
   partTypes=[HULL,COCKPIT,WINGS,THRUSTERS,POWER_CORE,SHIELD_GENERATOR,MAIN_COMPUTER,WEAPON_CONTROL_UNIT,DEVICE,ADD_ON,MAIN_WEAPON,WING_WEAPON]
 
   damageTypes = [ 'detonation', 'overload', 'ignition', 'distortion', 'decay', 'perforation']
+  normalResists =  map(lambda x: x+"Resist",damageTypes)
+  multTypes = map(lambda x: x+"Mult",damageTypes)
 
   HUMAN = 1
   GUANTRI = 2
@@ -553,7 +555,7 @@ class Gunship(dict):
   PartSlot = namedtuple('PartSlot', 'name type part')
   partFields = ["hull","cockpit","wings","thrusters","powerCore","shieldGenerator","mainComputer","weaponControlUnit","device","addOn","mainWeapon","wingWeapon1","wingWeapon2"]
   partSlotsByField = { "hull": PartSlot("Hull", HULL, None), "cockpit": PartSlot("Cockpit", COCKPIT, None), "wings": PartSlot("Wings", WINGS, None), "thrusters": PartSlot("Thrusters", THRUSTERS, None), "powerCore": PartSlot("Power Core", POWER_CORE, None), "shieldGenerator": PartSlot("Shield Generator", SHIELD_GENERATOR, None), "mainComputer": PartSlot("Main Computer", MAIN_COMPUTER, None), "weaponControlUnit": PartSlot("WCU", WEAPON_CONTROL_UNIT, None), "device": PartSlot("Device", DEVICE, None), "addOn": PartSlot("Add-on", ADD_ON, None), "mainWeapon": PartSlot("Main Weapon", MAIN_WEAPON, None), "wingWeapon1": PartSlot("Wing Weapon 1", WING_WEAPON, None), "wingWeapon2": PartSlot("Wing Weapon 2", WING_WEAPON, None) }
-  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "protection", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingRange", "reflect", "shieldPerSec", "energyPerSec", "damageMult", "perforationMult", "decayMult", "distortionMult", "ignitionMult", "overloadMult", "detonationMult"]
+  directSummableAttribs = [ "weightCost", "powerCost", "heatCost", "weightCapacity", "powerCapacity", "heatCapacity", "grade",  "shield", "shieldRecharge", "energy", "energyRegen", "protection", "handling", "speed", "boost", "purgeCooldown", "abilityCooldown", "lockingSpeed", "targetingRange", "reflect", "shieldPerSec", "energyPerSec", "damageMult"] + normalResists + multTypes
   def __getattr__(self, key):
     return self[key]
 
@@ -594,10 +596,9 @@ class Gunship(dict):
     self.traits =  [ (trait,self[field].part.displayName) for field in Gunship.partFields if self[field].part for trait in self[field].part.traits ]
 
     for attrib in Gunship.directSummableAttribs:
-      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part and attrib in self[field].part]) + \
-                     sum([trait.statMods[attrib][0] for trait,_ in self.traits if trait.isActive and attrib in trait.statMods])
+      self[attrib] = sum([ self[field].part[attrib] for field in Gunship.partFields if self[field].part and attrib in self[field].part])
 
-    if self.numWingWeapons == 2 && self.wingWeapon1.part and self.wingWeapon2.part:
+    if self.numWingWeapons == 2 and self.wingWeapon1.part and self.wingWeapon2.part:
       self.wingAmmoMod *= .8
 
 
@@ -636,14 +637,20 @@ class Gunship(dict):
         self.ignitionResist   *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
         self.detonationResist *= 1.0-(1.0 + percentOver*49.0/20.0)/100.0
 
+
+    # calculate trait bonuses AFTER over capacity penalties
+    for attrib in Gunship.directSummableAttribs:
+      self[attrib] += sum([trait.statMods[attrib][0] * (10 if attrib in normalResists else 1) for trait,_ in self.traits if trait.isActive and attrib in trait.statMods])
+
     # round down
-    for attrib in ["handling", "protection", "energy", "energyRegen", "perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist", "speed", "boost", "abilityCooldown", "purgeCooldown"]:
+    for attrib in ["handling", "protection", "energy", "energyRegen", "speed", "boost", "abilityCooldown", "purgeCooldown"] + normalResists:
       self[attrib] = int(self[attrib])
 
     #TODO: Check to see if stuff like ability cooldown is calculated before display rounding by the game.
     self.purge = 180 * 100.0 / self.purgeCooldown if self.purgeCooldown else INFINITY
     self.deviceCooldown = self.device.part.cooldown * 100.0 / (self.abilityCooldown if self.abilityCooldown else 100) if self.device.part else None
     self.addOnCooldown = self.addOn.part.cooldown   * 100.0 / (self.abilityCooldown if self.abilityCooldown else 100) if self.addOn.part else None
+
 
 
   def updateSubPartValues(self):
@@ -1291,7 +1298,6 @@ class IconResourceDisplay(GridLayout):
 
 class ResistsGrid(GridLayout):
   def __init__(self, **kwargs):
-    self.normalResistAttribs = {"perforationResist", "decayResist", "distortionResist", "ignitionResist", "overloadResist", "detonationResist"}
     super(ResistsGrid,self).__init__(**kwargs)
     self.rows = 1
     self.cols = 2
@@ -1299,16 +1305,16 @@ class ResistsGrid(GridLayout):
 
   def updateDisplay(self):
     self.clear_widgets()
-    normalResists = GridLayout(size_hint_x=.75,rows=2,cols=6)
-    for dType in self.normalResistAttribs:
-      #normalResists.add_widget(SmartRow([DamageTypeIcon([dType[:-6]]),SaneLabel(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0))]))
-      normalResists.add_widget(Image(source="icons/"+dType[:-6]+".png"))
-      normalResists.add_widget(Label(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0)))
+    normalResistsGrid = GridLayout(size_hint_x=.75,rows=2,cols=6)
+    for dType in normalResists:
+      #normalResistsGrid.add_widget(SmartRow([DamageTypeIcon([dType[:-6]]),SaneLabel(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0))]))
+      normalResistsGrid.add_widget(Image(source="icons/"+dType[:-6]+".png"))
+      normalResistsGrid.add_widget(Label(text=str(self.part[dType]/10. if self.part and dType in self.part  else 0)))
     protection = GridLayout(size_hint_x=.25,rows=1,cols=2)
 
     protection.add_widget(Image(source="icons/genesis.png"))
     protection.add_widget(Label(text=str( self.part["protection"]/10. if self.part and "protection" in self.part  else 0)))
-    self.add_widget(normalResists)
+    self.add_widget(normalResistsGrid)
     self.add_widget(protection)
 
   def setPart(self, part):
@@ -1759,12 +1765,9 @@ class ShipBuilder(GridLayout):
     self._keyboard = None
 
   def _on_keyboard_down(self, keyboard, keycode, text, modifiers):
-    print "button press!",
     if keycode[1] == 'q' and currentShip.race == GUANTRI:
-      print "change"
       self.alphaOmegaSwap(self.gModeBtn)
       return True
-    print "no change"
     return False
 
   def alphaOmegaSwap(self, btn):
